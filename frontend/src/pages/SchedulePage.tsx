@@ -3,6 +3,8 @@ import { addWeeks, startOfDay } from "date-fns";
 import { useState } from "react";
 
 import {
+  DAY_VIEW_END_HOUR,
+  DAY_VIEW_START_HOUR,
   DEFAULT_BOOKING_HOURS,
   DEFAULT_BOOKING_START_HOUR,
   DAYS_PER_WEEK,
@@ -11,6 +13,7 @@ import { isInCategory } from "../features/availability/categories";
 import { CategoryFilter } from "../features/availability/CategoryFilter";
 import { DayTabs } from "../features/availability/DayTabs";
 import { DayTimeline } from "../features/availability/DayTimeline";
+import { formatHourLabel } from "../features/availability/dayLayout";
 import { useAvailability } from "../features/availability/useAvailability";
 import {
   BookingDialog,
@@ -25,6 +28,7 @@ import {
   buildDayRange,
   buildWeekDays,
   formatDateInput,
+  formatLongDay,
   getWeekStart,
   pickDefaultStartTime,
 } from "../features/studio/studioTime";
@@ -132,9 +136,6 @@ function Schedule({
           + New booking
         </Button>
       </div>
-      <p className="text-sm text-ink-muted">
-        Times are studio time: {describeZone(timezone)}
-      </p>
       {availability.error && (
         <LoadError
           subject="the schedule"
@@ -147,9 +148,11 @@ function Schedule({
         <p className="text-sm text-ink-muted">Loading the schedule…</p>
       )}
       {availability.data && (
-        <div className="rounded-xl border border-line bg-surface p-2">
+        <div className="space-y-3 rounded-xl border border-line bg-surface p-3">
+          <DayHeading day={selectedDay} timezone={timezone} />
           <DayTimeline
             day={selectedDay}
+            now={today}
             rows={rows}
             timezone={timezone}
             timeStepMinutes={timeStepMinutes}
@@ -170,6 +173,20 @@ function Schedule({
         request={dialogRequest}
         onClose={() => setDialogRequest(null)}
       />
+    </div>
+  );
+}
+
+const VISIBLE_HOURS_TEXT = `${formatHourLabel(DAY_VIEW_START_HOUR)}–${formatHourLabel(DAY_VIEW_END_HOUR)}`;
+
+/** Names the one day the timeline shows, so it can't be read as a week. */
+function DayHeading({ day, timezone }: { day: TZDate; timezone: string }) {
+  return (
+    <div>
+      <h2 className="text-lg font-semibold">{formatLongDay(day)}</h2>
+      <p className="text-sm text-ink-muted">
+        {VISIBLE_HOURS_TEXT} · Times are studio time: {describeZone(timezone)}
+      </p>
     </div>
   );
 }

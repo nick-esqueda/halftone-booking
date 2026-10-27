@@ -1,6 +1,6 @@
 /**
- * Geometry for the day timeline: where a booking sits inside the visible
- * hours, and which time a click lands on. Pure functions, easy to test.
+ * Geometry for the day timeline, where hours run left to right: where a
+ * booking sits inside the visible hours, and which time a click lands on. Pure functions, easy to test.
  * `setHours` works in studio wall-clock time, so daylight-saving days line up.
  */
 import type { TZDate } from "@date-fns/tz";
@@ -9,8 +9,8 @@ import { addMinutes, format, setHours } from "date-fns";
 import { DAY_VIEW_END_HOUR, DAY_VIEW_START_HOUR } from "../../config/constants";
 
 export interface BlockPosition {
-  topPercent: number;
-  heightPercent: number;
+  leftPercent: number;
+  widthPercent: number;
 }
 
 const PERCENT = 100;
@@ -40,12 +40,25 @@ export function computeBlockPosition(
 
   const windowLength = visible.end - visible.start;
   return {
-    topPercent: ((clippedStart - visible.start) / windowLength) * PERCENT,
-    heightPercent: ((clippedEnd - clippedStart) / windowLength) * PERCENT,
+    leftPercent: ((clippedStart - visible.start) / windowLength) * PERCENT,
+    widthPercent: ((clippedEnd - clippedStart) / windowLength) * PERCENT,
   };
 }
 
-/** The studio time ("HH:mm") at a vertical fraction of the timeline, snapped down to the step. */
+/** How far across `day`'s visible hours `now` is, or null if it's another day or outside them. */
+export function computeNowPercent(day: TZDate, now: Date): number | null {
+  const visible = getVisibleWindow(day);
+  const nowTime = now.getTime();
+  const isVisible = visible.start <= nowTime && nowTime < visible.end;
+  if (!isVisible) {
+    return null;
+  }
+
+  const windowLength = visible.end - visible.start;
+  return ((nowTime - visible.start) / windowLength) * PERCENT;
+}
+
+/** The studio time ("HH:mm") at a horizontal fraction of the timeline, snapped down to the step. */
 export function computeTimeAtFraction(
   day: TZDate,
   fraction: number,
@@ -62,8 +75,12 @@ export function computeTimeAtFraction(
 
 /** Labels for the hour lines, e.g. ["07:00", "08:00", ...]. */
 export function buildHourLabels(): string[] {
-  return Array.from({ length: VISIBLE_HOUR_COUNT }, (_, index) => {
-    const hour = DAY_VIEW_START_HOUR + index;
-    return `${String(hour).padStart(2, "0")}:00`;
-  });
+  return Array.from({ length: VISIBLE_HOUR_COUNT }, (_, index) =>
+    formatHourLabel(DAY_VIEW_START_HOUR + index),
+  );
+}
+
+/** An hour of the day as "HH:00", e.g. 7 → "07:00". */
+export function formatHourLabel(hour: number): string {
+  return `${String(hour).padStart(2, "0")}:00`;
 }

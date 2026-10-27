@@ -28,7 +28,7 @@ test("the schedule explains an outage and recovers on Try again", async ({
   await alert.getByRole("button", { name: "Try again" }).click();
 
   await expect(alert).toBeHidden();
-  await expect(page.getByTestId("column-1")).toBeVisible();
+  await expect(page.getByTestId("row-1")).toBeVisible();
 });
 
 test("a booking that can't reach the server keeps the form", async ({

@@ -15,7 +15,7 @@ import {
 } from "@playwright/test";
 
 const DAY_VIEW_START_HOUR = 7;
-const HOUR_ROW_HEIGHT_PX = 48;
+const DAY_VIEW_END_HOUR = 22;
 const CLICK_OFFSET_PX = 4;
 const CAMERA_A_ID = 1;
 const CAMERA_B_ID = 2;
@@ -32,12 +32,18 @@ async function openNextWednesday(page: Page) {
   await page.getByRole("tab", { name: /Wed/ }).click();
 }
 
-/** Clicks an item's column at the given hour, which opens a new booking. */
+/** Clicks an item's row at the given hour, which opens a new booking. */
 async function clickSlot(page: Page, equipmentId: number, hour: number) {
-  const offsetY = (hour - DAY_VIEW_START_HOUR) * HOUR_ROW_HEIGHT_PX;
-  await page
-    .getByTestId(`column-${equipmentId}`)
-    .click({ position: { x: 10, y: offsetY + CLICK_OFFSET_PX } });
+  const row = page.getByTestId(`row-${equipmentId}`);
+  const bounds = await row.boundingBox();
+  if (bounds === null) {
+    throw new Error(`Row for item ${equipmentId} isn't visible`);
+  }
+
+  const visibleHours = DAY_VIEW_END_HOUR - DAY_VIEW_START_HOUR;
+  const hourWidth = bounds.width / visibleHours;
+  const offsetX = (hour - DAY_VIEW_START_HOUR) * hourWidth;
+  await row.click({ position: { x: offsetX + CLICK_OFFSET_PX, y: 10 } });
 }
 
 interface BookingResponse {

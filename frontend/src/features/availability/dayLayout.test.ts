@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildHourLabels,
   computeBlockPosition,
+  computeNowPercent,
   computeTimeAtFraction,
   VISIBLE_HOUR_COUNT,
 } from "./dayLayout";
@@ -21,8 +22,8 @@ describe("computeBlockPosition", () => {
       "2026-10-29T17:00:00Z",
       THURSDAY,
     );
-    expect(position?.topPercent).toBeCloseTo((3 / VISIBLE_HOUR_COUNT) * 100);
-    expect(position?.heightPercent).toBeCloseTo((2 / VISIBLE_HOUR_COUNT) * 100);
+    expect(position?.leftPercent).toBeCloseTo((3 / VISIBLE_HOUR_COUNT) * 100);
+    expect(position?.widthPercent).toBeCloseTo((2 / VISIBLE_HOUR_COUNT) * 100);
   });
 
   it("clips a booking that started the day before", () => {
@@ -31,7 +32,7 @@ describe("computeBlockPosition", () => {
       "2026-10-29T14:00:00Z",
       THURSDAY,
     );
-    expect(position?.topPercent).toBe(0);
+    expect(position?.leftPercent).toBe(0);
   });
 
   it("hides a booking outside the visible hours", () => {
@@ -50,7 +51,28 @@ describe("computeBlockPosition", () => {
       "2026-11-01T17:00:00Z",
       FALL_BACK_DAY,
     );
-    expect(position?.topPercent).toBeCloseTo((3 / VISIBLE_HOUR_COUNT) * 100);
+    expect(position?.leftPercent).toBeCloseTo((3 / VISIBLE_HOUR_COUNT) * 100);
+  });
+});
+
+describe("computeNowPercent", () => {
+  it("places the current time inside the visible hours", () => {
+    // 10:30 Chicago, 3.5 hours after 07:00.
+    const now = new Date("2026-10-29T15:30:00Z");
+    expect(computeNowPercent(THURSDAY, now)).toBeCloseTo(
+      (3.5 / VISIBLE_HOUR_COUNT) * 100,
+    );
+  });
+
+  it("hides the line on other days", () => {
+    const nextDay = new Date("2026-10-30T15:30:00Z");
+    expect(computeNowPercent(THURSDAY, nextDay)).toBeNull();
+  });
+
+  it("hides the line before the visible hours", () => {
+    // 06:00 Chicago.
+    const early = new Date("2026-10-29T11:00:00Z");
+    expect(computeNowPercent(THURSDAY, early)).toBeNull();
   });
 });
 

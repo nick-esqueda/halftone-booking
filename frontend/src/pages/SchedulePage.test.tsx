@@ -33,12 +33,12 @@ describe("SchedulePage when the API is failing", () => {
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Couldn't load the schedule.");
     expect(alert).toHaveTextContent("temporarily unavailable");
-    expect(screen.queryByTestId("column-1")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("row-1")).not.toBeInTheDocument();
 
     api.setRoute("GET /api/availability", () => respond(200, AVAILABILITY));
     await userEvent.click(screen.getByRole("button", { name: "Try again" }));
 
-    expect(await screen.findByTestId("column-1")).toBeInTheDocument();
+    expect(await screen.findByTestId("row-1")).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 

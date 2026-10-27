@@ -2,18 +2,21 @@ import type { TZDate } from "@date-fns/tz";
 import type { MouseEvent } from "react";
 
 import type { BusySlot, EquipmentAvailability } from "../../api/types";
-import { getCategoryStyle, HOUR_ROW_HEIGHT_PX } from "../../config/constants";
+import { getCategoryStyle, MIN_HOUR_WIDTH_PX } from "../../config/constants";
 import { formatTime } from "../studio/studioTime";
 import { describeInViewerTime, getViewerTimezone } from "../studio/viewerTime";
+import { groupByCategory } from "./categories";
 import {
   buildHourLabels,
   computeBlockPosition,
+  computeNowPercent,
   computeTimeAtFraction,
   VISIBLE_HOUR_COUNT,
 } from "./dayLayout";
 
 interface DayTimelineProps {
   day: TZDate;
+  now: Date;
   rows: EquipmentAvailability[];
   timezone: string;
   timeStepMinutes: number;
@@ -22,32 +25,61 @@ interface DayTimelineProps {
   onEmptySlotClick: (equipmentId: number, startTime: string) => void;
 }
 
-const TIMELINE_HEIGHT_PX = VISIBLE_HOUR_COUNT * HOUR_ROW_HEIGHT_PX;
 const HOUR_LABELS = buildHourLabels();
+const MIN_TRACK_WIDTH_PX = VISIBLE_HOUR_COUNT * MIN_HOUR_WIDTH_PX;
 
-/** One day: an hour column on the left, then one column per item. Purely presentational. */
+// The item names stay pinned on the left while the hours scroll sideways.
+const NAME_COLUMN_CLASS_NAME =
+  "sticky left-0 z-20 w-28 shrink-0 bg-surface pr-2 sm:w-40";
+
+/**
+ * One day: one row per item, grouped by category, with hours running left to
+ * right. Purely presentational.
+ */
 export function DayTimeline(props: DayTimelineProps) {
+  const groups = groupByCategory(props.rows);
+  const nowPercent = computeNowPercent(props.day, props.now);
+
   return (
     <div className="overflow-x-auto">
-      <div className="flex min-w-[640px]">
-        <HourLabels />
-        {props.rows.map((row) => (
-          <EquipmentColumn key={row.equipment.id} row={row} {...props} />
-        ))}
-      </div>
+      <HourHeader />
+      {groups.map((group) => (
+        <section
+          key={group.category}
+          aria-label={getCategoryStyle(group.category).label}
+        >
+          <CategoryHeading category={group.category} />
+          {group.rows.map((row) => (
+            <EquipmentRow
+              key={row.equipment.id}
+              row={row}
+              nowPercent={nowPercent}
+              {...props}
+            />
+          ))}
+        </section>
+      ))}
     </div>
   );
 }
 
-function HourLabels() {
+function HourHeader() {
   return (
-    <div className="w-14 shrink-0 pt-10">
-      <div className="relative" style={{ height: TIMELINE_HEIGHT_PX }}>
+    <div className="flex">
+      <div
+        className={`${NAME_COLUMN_CLASS_NAME} text-[11px] font-semibold uppercase tracking-wide text-ink-faint`}
+      >
+        Equipment
+      </div>
+      <div
+        className="relative h-6 flex-1"
+        style={{ minWidth: MIN_TRACK_WIDTH_PX }}
+      >
         {HOUR_LABELS.map((label, index) => (
           <span
             key={label}
-            className="absolute right-2 -translate-y-1/2 text-xs text-ink-faint"
-            style={{ top: index * HOUR_ROW_HEIGHT_PX }}
+            className="absolute pl-1 text-xs tabular-nums text-ink-faint"
+            style={{ left: `${(index / VISIBLE_HOUR_COUNT) * 100}%` }}
           >
             {label}
           </span>
@@ -57,24 +89,37 @@ function HourLabels() {
   );
 }
 
-interface EquipmentColumnProps extends DayTimelineProps {
-  row: EquipmentAvailability;
+function CategoryHeading({ category }: { category: string }) {
+  const categoryStyle = getCategoryStyle(category);
+  return (
+    <div
+      className={`${NAME_COLUMN_CLASS_NAME} pb-1 pt-3 text-[11px] font-semibold uppercase tracking-wide text-ink-muted`}
+    >
+      {categoryStyle.label}
+    </div>
+  );
 }
 
-function EquipmentColumn({
+interface EquipmentRowProps extends DayTimelineProps {
+  row: EquipmentAvailability;
+  nowPercent: number | null;
+}
+
+function EquipmentRow({
   row,
   day,
+  nowPercent,
   timezone,
   timeStepMinutes,
   currentBookerName,
   onBookingClick,
   onEmptySlotClick,
-}: EquipmentColumnProps) {
+}: EquipmentRowProps) {
   const categoryStyle = getCategoryStyle(row.equipment.category);
 
-  const handleColumnClick = (event: MouseEvent<HTMLDivElement>) => {
+  const handleTrackClick = (event: MouseEvent<HTMLDivElement>) => {
     const bounds = event.currentTarget.getBoundingClientRect();
-    const fraction = (event.clientY - bounds.top) / bounds.height;
+    const fraction = (event.clientX - bounds.left) / bounds.width;
     onEmptySlotClick(
       row.equipment.id,
       computeTimeAtFraction(day, fraction, timeStepMinutes),
@@ -82,8 +127,10 @@ function EquipmentColumn({
   };
 
   return (
-    <div className="min-w-[96px] flex-1 border-l border-line">
-      <div className="flex h-10 items-center justify-center gap-1.5 px-1 text-xs font-semibold">
+    <div className="flex border-t border-line">
+      <div
+        className={`${NAME_COLUMN_CLASS_NAME} flex items-center gap-1.5 text-sm`}
+      >
         <span
           className={`h-2 w-2 shrink-0 rounded-full ${categoryStyle.dotClassName}`}
         />
@@ -93,12 +140,13 @@ function EquipmentColumn({
         role="button"
         tabIndex={-1}
         aria-label={`Book ${row.equipment.name}`}
-        data-testid={`column-${row.equipment.id}`}
-        className="relative cursor-pointer hover:bg-muted"
-        style={{ height: TIMELINE_HEIGHT_PX }}
-        onClick={handleColumnClick}
+        data-testid={`row-${row.equipment.id}`}
+        className="relative h-12 flex-1 cursor-pointer hover:bg-muted"
+        style={{ minWidth: MIN_TRACK_WIDTH_PX }}
+        onClick={handleTrackClick}
       >
         <HourLines />
+        {nowPercent !== null && <NowLine percent={nowPercent} />}
         {row.busy.map((slot) => (
           <BookingBlock
             key={slot.booking_id}
@@ -124,11 +172,21 @@ function HourLines() {
       {HOUR_LABELS.map((label, index) => (
         <div
           key={label}
-          className="pointer-events-none absolute inset-x-0 border-t border-line"
-          style={{ top: index * HOUR_ROW_HEIGHT_PX }}
+          className="pointer-events-none absolute inset-y-0 border-l border-line"
+          style={{ left: `${(index / VISIBLE_HOUR_COUNT) * 100}%` }}
         />
       ))}
     </>
+  );
+}
+
+function NowLine({ percent }: { percent: number }) {
+  return (
+    <div
+      data-testid="now-line"
+      className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-danger"
+      style={{ left: `${percent}%` }}
+    />
   );
 }
 
@@ -176,10 +234,10 @@ function BookingBlock({
         event.stopPropagation();
         onClick(slot.booking_id);
       }}
-      className={`absolute inset-x-1 overflow-hidden rounded-md border px-1.5 py-1 text-left text-[11px] leading-tight ${isMine ? MINE_CLASS_NAME : OTHERS_CLASS_NAME}`}
+      className={`absolute inset-y-1 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] leading-tight ${isMine ? MINE_CLASS_NAME : OTHERS_CLASS_NAME}`}
       style={{
-        top: `${position.topPercent}%`,
-        height: `${position.heightPercent}%`,
+        left: `${position.leftPercent}%`,
+        width: `${position.widthPercent}%`,
       }}
     >
       <span className="block truncate font-semibold">{name}</span>

@@ -6,7 +6,8 @@ export const THEME_STORAGE_KEY = "halftone-booking:theme";
 // The day timeline shows these hours, in studio time.
 export const DAY_VIEW_START_HOUR = 7;
 export const DAY_VIEW_END_HOUR = 22;
-export const HOUR_ROW_HEIGHT_PX = 48;
+// Narrower than this and the timeline scrolls sideways instead of squashing.
+export const MIN_HOUR_WIDTH_PX = 56;
 
 export const DAYS_PER_WEEK = 7;
 

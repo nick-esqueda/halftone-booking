@@ -20,6 +20,7 @@ export const TIME_INPUT_FORMAT = "HH:mm";
 const TIME_FORMAT = "HH:mm";
 const DAY_FORMAT = "EEE d MMM";
 const SHORT_DAY_FORMAT = "EEE d";
+const LONG_DAY_FORMAT = "EEEE, MMMM d";
 
 export function toStudioDate(value: string | Date, timezone: string): TZDate {
   const instant = typeof value === "string" ? new Date(value) : value;
@@ -36,6 +37,10 @@ export function formatDay(value: string | Date, timezone: string): string {
 
 export function formatShortDay(value: Date): string {
   return format(value, SHORT_DAY_FORMAT);
+}
+
+export function formatLongDay(value: Date): string {
+  return format(value, LONG_DAY_FORMAT);
 }
 
 /** "Thu 29 Oct, 13:00 – 15:00", or both days when the range spans days. */
