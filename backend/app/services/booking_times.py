@@ -9,8 +9,7 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.models import Booking, BookingItem
-
-TIME_FORMAT = "%a %b %d, %H:%M"
+from app.studio_time import format_day_and_time
 
 
 @dataclass(frozen=True)
@@ -49,7 +48,7 @@ def get_booking_span(booking: Booking) -> TimeSpan:
 
 
 def describe_span(span: TimeSpan, studio_zone: ZoneInfo) -> str:
-    """Human-readable range in studio time, e.g. "Thu Oct 29, 13:00 to Thu Oct 29, 17:00"."""
-    start_text = span.starts_at.astimezone(studio_zone).strftime(TIME_FORMAT)
-    end_text = span.ends_at.astimezone(studio_zone).strftime(TIME_FORMAT)
+    """Human-readable range in studio time, e.g. "Thu Oct 29, 1:00 PM to Thu Oct 29, 5:00 PM"."""
+    start_text = format_day_and_time(span.starts_at.astimezone(studio_zone))
+    end_text = format_day_and_time(span.ends_at.astimezone(studio_zone))
     return f"{start_text} to {end_text}"

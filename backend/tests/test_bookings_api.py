@@ -119,7 +119,9 @@ def test_history_records_every_change(client: TestClient) -> None:
     history = client.get(f"/api/bookings/{booking['id']}/history").json()
 
     assert [event["action"] for event in history] == ["created", "updated", "cancelled"]
-    assert history[0]["summary"] == "Camera A, Thu Oct 29, 13:00 to Thu Oct 29, 15:00"
+    assert (
+        history[0]["summary"] == "Camera A, Thu Oct 29, 1:00 PM to Thu Oct 29, 3:00 PM"
+    )
 
 
 def test_bad_request_uses_shared_error_shape(client: TestClient) -> None:

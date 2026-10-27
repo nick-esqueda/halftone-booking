@@ -17,6 +17,7 @@ from zoneinfo import ZoneInfo
 from app.errors import InvalidBookingError
 
 FIRST_OCCURRENCE_FOLD = 0
+HOURS_ON_CLOCK_FACE = 12
 
 
 class Clock(Protocol):
@@ -41,7 +42,7 @@ def convert_to_utc(value: datetime, studio_zone: ZoneInfo) -> datetime:
     if round_trip != value:
         raise InvalidBookingError(
             "nonexistent_time",
-            f"{value:%b %d, %H:%M} doesn't exist in studio time "
+            f"{value:%b %d}, {format_clock_time(value)} doesn't exist in studio time "
             "because the clocks jump forward then.",
         )
     return utc_time
@@ -56,3 +57,14 @@ def is_on_time_step(value: datetime, studio_zone: ZoneInfo, step_minutes: int) -
     local_time = value.astimezone(studio_zone)
     has_no_seconds = local_time.second == 0 and local_time.microsecond == 0
     return has_no_seconds and local_time.minute % step_minutes == 0
+
+
+def format_clock_time(value: datetime) -> str:
+    """12-hour clock time without a leading zero, e.g. "1:05 PM" or "12:00 AM"."""
+    hour = value.hour % HOURS_ON_CLOCK_FACE or HOURS_ON_CLOCK_FACE
+    return f"{hour}:{value:%M %p}"
+
+
+def format_day_and_time(value: datetime) -> str:
+    """Day and 12-hour time, e.g. "Thu Oct 29, 1:00 PM"."""
+    return f"{value:%a %b %d}, {format_clock_time(value)}"

@@ -7,6 +7,7 @@ import type { TZDate } from "@date-fns/tz";
 import { addMinutes, format, setHours } from "date-fns";
 
 import { DAY_VIEW_END_HOUR, DAY_VIEW_START_HOUR } from "../../config/constants";
+import { formatHourLabel } from "../studio/clockTime";
 
 export interface BlockPosition {
   leftPercent: number;
@@ -73,14 +74,9 @@ export function computeTimeAtFraction(
   return format(addMinutes(windowStart, snappedMinutes), TIME_FORMAT);
 }
 
-/** Labels for the hour lines, e.g. ["07:00", "08:00", ...]. */
+/** Labels for the hour lines, e.g. ["7 AM", "8 AM", ...]. */
 export function buildHourLabels(): string[] {
   return Array.from({ length: VISIBLE_HOUR_COUNT }, (_, index) =>
     formatHourLabel(DAY_VIEW_START_HOUR + index),
   );
-}
-
-/** An hour of the day as "HH:00", e.g. 7 → "07:00". */
-export function formatHourLabel(hour: number): string {
-  return `${String(hour).padStart(2, "0")}:00`;
 }

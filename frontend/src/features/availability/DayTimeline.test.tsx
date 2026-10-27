@@ -95,7 +95,9 @@ describe("DayTimeline", () => {
     ]);
 
     await userEvent.click(
-      screen.getByRole("button", { name: "Priya · 10:00–12:00 · Brand shoot" }),
+      screen.getByRole("button", {
+        name: "Priya · 10:00 AM–12:00 PM · Brand shoot",
+      }),
     );
 
     expect(onBookingClick).toHaveBeenCalledWith(7);

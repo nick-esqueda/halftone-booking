@@ -49,7 +49,7 @@ describe("ItemPicker", () => {
   it("shows who has a taken item and when", () => {
     renderPicker([]);
     expect(
-      screen.getByText("Taken by Ana, Thu 29 Oct, 13:00 – 15:00"),
+      screen.getByText("Taken by Ana, Thu 29 Oct, 1:00 PM – 3:00 PM"),
     ).toBeInTheDocument();
     expect(screen.getByText("Free")).toBeInTheDocument();
   });

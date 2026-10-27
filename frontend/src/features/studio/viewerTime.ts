@@ -1,6 +1,6 @@
 /**
  * Hints for people booking from another timezone. The app always works in
- * studio time; these only add "that's 00:00 your time" lines alongside it.
+ * studio time; these only add "that's 12:00 AM your time" lines alongside it.
  * Every function takes the viewer's zone as an argument so tests can pick it.
  */
 import { formatTimeRange } from "./studioTime";
@@ -31,7 +31,7 @@ export function describeZone(timezone: string): string {
 }
 
 /**
- * The range in the viewer's own time, e.g. "Fri 30 Oct, 00:00 – 02:00 your
+ * The range in the viewer's own time, e.g. "Fri 30 Oct, 12:00 AM – 2:00 AM your
  * time (Tokyo)", or null when it reads the same as in studio time.
  */
 export function describeInViewerTime(

@@ -13,7 +13,6 @@ import { isInCategory } from "../features/availability/categories";
 import { CategoryFilter } from "../features/availability/CategoryFilter";
 import { DayTabs } from "../features/availability/DayTabs";
 import { DayTimeline } from "../features/availability/DayTimeline";
-import { formatHourLabel } from "../features/availability/dayLayout";
 import { useAvailability } from "../features/availability/useAvailability";
 import {
   BookingDialog,
@@ -33,6 +32,7 @@ import {
   pickDefaultStartTime,
 } from "../features/studio/studioTime";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
+import { formatHourLabel } from "../features/studio/clockTime";
 import { describeZone } from "../features/studio/viewerTime";
 
 const ALL_CATEGORIES = "all";

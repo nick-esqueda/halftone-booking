@@ -17,7 +17,7 @@ describe("describeInViewerTime", () => {
   it("gives the time and day for someone far away", () => {
     expect(
       describeInViewerTime(STARTS_AT, ENDS_AT, STUDIO_ZONE, "Asia/Tokyo"),
-    ).toBe("Fri 30 Oct, 00:00 – 02:00 your time (Tokyo)");
+    ).toBe("Fri 30 Oct, 12:00 AM – 2:00 AM your time (Tokyo)");
   });
 
   it("is null for another zone that reads the same right now", () => {

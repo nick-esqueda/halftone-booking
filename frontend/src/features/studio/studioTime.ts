@@ -13,11 +13,13 @@ import {
   startOfWeek,
 } from "date-fns";
 
+import { padTwoDigits } from "./clockTime";
+
 const MONDAY = 1;
 
 export const DATE_INPUT_FORMAT = "yyyy-MM-dd";
 export const TIME_INPUT_FORMAT = "HH:mm";
-const TIME_FORMAT = "HH:mm";
+const TIME_FORMAT = "h:mm a";
 const DAY_FORMAT = "EEE d MMM";
 const SHORT_DAY_FORMAT = "EEE d";
 const LONG_DAY_FORMAT = "EEEE, MMMM d";
@@ -90,18 +92,6 @@ export function splitWallClockTime(
   };
 }
 
-/** Every time of day on the booking step, e.g. ["00:00", "00:15", ...]. */
-export function buildTimeOptions(stepMinutes: number): string[] {
-  const minutesPerDay = 24 * 60;
-  const optionCount = minutesPerDay / stepMinutes;
-  return Array.from({ length: optionCount }, (_, index) => {
-    const totalMinutes = index * stepMinutes;
-    const hours = String(Math.floor(totalMinutes / 60)).padStart(2, "0");
-    const minutes = String(totalMinutes % 60).padStart(2, "0");
-    return `${hours}:${minutes}`;
-  });
-}
-
 /** The moment a studio date and time ("2026-10-29", "13:00") refers to. */
 export function parseWallClock(
   parts: WallClockParts,
@@ -159,5 +149,5 @@ export function pickDefaultStartTime(
   const nextHour = Math.min(now.getHours() + 1, LAST_START_HOUR);
   const hasDefaultPassed = isSameDay(day, now) && nextHour > defaultHour;
   const startHour = hasDefaultPassed ? nextHour : defaultHour;
-  return `${String(startHour).padStart(2, "0")}:00`;
+  return `${padTwoDigits(startHour)}:00`;
 }

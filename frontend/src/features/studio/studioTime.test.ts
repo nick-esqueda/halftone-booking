@@ -4,7 +4,6 @@ import { describe, expect, it } from "vitest";
 import {
   addHoursToWallClock,
   buildDayRange,
-  buildTimeOptions,
   getWeekStart,
   parseWallClock,
   pickDefaultStartTime,
@@ -13,15 +12,6 @@ import {
 
 const ZONE = "America/Chicago";
 const DEFAULT_HOUR = 9;
-
-describe("buildTimeOptions", () => {
-  it("lists every step of the day", () => {
-    const options = buildTimeOptions(15);
-    expect(options).toHaveLength(96);
-    expect(options.slice(0, 3)).toEqual(["00:00", "00:15", "00:30"]);
-    expect(options.at(-1)).toBe("23:45");
-  });
-});
 
 describe("splitWallClockTime", () => {
   it("shows an API time in studio time", () => {

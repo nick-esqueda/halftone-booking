@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Booking, EquipmentAvailability } from "../../api/types";
 import { failNetwork, installFakeApi, respond } from "../../test/fakeApi";
 import { renderWithProviders } from "../../test/renderWithProviders";
+import { pickTime, readTime } from "../../test/timePicker";
 import { BookingDialog, type BookingDialogRequest } from "./BookingDialog";
 
 const CAMERA_A = {
@@ -209,10 +210,8 @@ describe("editing a booking", () => {
     });
     renderDialog({ kind: "edit", bookingId: 7 });
 
-    await userEvent.selectOptions(
-      await screen.findByLabelText("End time"),
-      "13:00",
-    );
+    await screen.findByRole("group", { name: "End time" });
+    await pickTime("End time", { hour: 1, minute: 0, period: "PM" });
     await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
 
     await waitFor(() =>
@@ -247,9 +246,7 @@ describe("editing a booking", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(
       "The latest version is shown now",
     );
-    await waitFor(() =>
-      expect(screen.getByLabelText("End time")).toHaveValue("14:00"),
-    );
+    await waitFor(() => expect(readTime("End time")).toBe("2:00 PM"));
   });
 
   it("offers to try again when the booking can't be loaded", async () => {

@@ -11,7 +11,6 @@ import {
 } from "../../components/ui/styles";
 import { useAvailability } from "../availability/useAvailability";
 import { NameInput } from "../identity/NameInput";
-import { buildTimeOptions } from "../studio/studioTime";
 import { describeInViewerTime, getViewerTimezone } from "../studio/viewerTime";
 import {
   findFormProblems,
@@ -23,6 +22,7 @@ import {
   type BookingFormValues,
 } from "./bookingFormValues";
 import { ItemPicker } from "./ItemPicker";
+import { TimePicker } from "./TimePicker";
 
 interface BookingFormProps {
   initialValues: BookingFormValues;
@@ -165,7 +165,6 @@ function TimeRangeFields({
   timeStepMinutes,
   onChange,
 }: TimeRangeFieldsProps) {
-  const timeOptions = buildTimeOptions(timeStepMinutes);
   const viewerTimeHint = describeViewerTimeHint(values, timezone);
   return (
     <Field label="When (studio time)">
@@ -178,10 +177,10 @@ function TimeRangeFields({
           onChange={(event) => onChange({ startDate: event.target.value })}
           className={TEXT_INPUT_CLASS_NAME}
         />
-        <TimeSelect
+        <TimePicker
           label="Start time"
           value={values.startTime}
-          options={timeOptions}
+          stepMinutes={timeStepMinutes}
           onChange={(startTime) => onChange({ startTime })}
         />
         <span className="text-sm text-ink-muted">To</span>
@@ -192,10 +191,10 @@ function TimeRangeFields({
           onChange={(event) => onChange({ endDate: event.target.value })}
           className={TEXT_INPUT_CLASS_NAME}
         />
-        <TimeSelect
+        <TimePicker
           label="End time"
           value={values.endTime}
-          options={timeOptions}
+          stepMinutes={timeStepMinutes}
           onChange={(endTime) => onChange({ endTime })}
         />
       </div>
@@ -215,30 +214,6 @@ function describeViewerTimeHint(
   }
   const { startsAt, endsAt } = getRangeInstants(values, timezone);
   return describeInViewerTime(startsAt, endsAt, timezone, getViewerTimezone());
-}
-
-interface TimeSelectProps {
-  label: string;
-  value: string;
-  options: string[];
-  onChange: (value: string) => void;
-}
-
-function TimeSelect({ label, value, options, onChange }: TimeSelectProps) {
-  return (
-    <select
-      aria-label={label}
-      value={value}
-      onChange={(event) => onChange(event.target.value)}
-      className={TEXT_INPUT_CLASS_NAME}
-    >
-      {options.map((option) => (
-        <option key={option} value={option}>
-          {option}
-        </option>
-      ))}
-    </select>
-  );
 }
 
 // Extra guidance shown under an API error, by error code.

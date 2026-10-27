@@ -46,6 +46,37 @@ async function clickSlot(page: Page, equipmentId: number, hour: number) {
   await row.click({ position: { x: offsetX + CLICK_OFFSET_PX, y: 10 } });
 }
 
+interface ClockTime {
+  hour: string;
+  minutes: string;
+  period: "AM" | "PM";
+}
+
+/** Sets the hour, minutes and AM/PM of a time picker, e.g. "End time". */
+async function pickTime(page: Page, label: string, time: ClockTime) {
+  const picker = page.getByRole("group", { name: label, exact: true });
+  await picker.getByLabel(`${label} hour`).selectOption(time.hour);
+  await picker.getByLabel(`${label} minutes`).selectOption({
+    label: time.minutes,
+  });
+  await picker.getByRole("button", { name: time.period }).click();
+}
+
+/** Checks the time a picker shows, e.g. "10:00 AM". */
+async function expectTime(page: Page, label: string, expected: string) {
+  const picker = page.getByRole("group", { name: label, exact: true });
+  const [hour, minutesAndPeriod] = expected.split(":");
+  const [minutes, period] = minutesAndPeriod.split(" ");
+
+  await expect(picker.getByLabel(`${label} hour`)).toHaveValue(hour);
+  await expect(
+    picker.getByLabel(`${label} minutes`).locator("option:checked"),
+  ).toHaveText(minutes);
+  await expect(
+    picker.getByRole("button", { name: period, pressed: true }),
+  ).toBeVisible();
+}
+
 interface BookingResponse {
   id: number;
   version: number;
@@ -112,14 +143,14 @@ test("book, clash, edit and cancel", async ({ page }) => {
   await setBookerName(page, FIRST_BOOKER);
   await openNextWednesday(page);
 
-  // Book Camera A, 10:00-12:00.
+  // Book Camera A, 10 AM-12 PM.
   await clickSlot(page, CAMERA_A_ID, 10);
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Start time")).toHaveValue("10:00");
+  await expectTime(page, "Start time", "10:00 AM");
   await dialog.getByRole("button", { name: "Book 1 item" }).click();
   await expect(dialog).toBeHidden();
   const firstBlock = page.getByRole("button", {
-    name: `${FIRST_BOOKER} · 10:00–12:00`,
+    name: `${FIRST_BOOKER} · 10:00 AM–12:00 PM`,
   });
   await expect(firstBlock).toContainText("You");
 
@@ -133,14 +164,14 @@ test("book, clash, edit and cancel", async ({ page }) => {
   await dialog.getByRole("button", { name: "Book 1 item" }).click();
   await expect(dialog).toBeHidden();
 
-  // Edit the first booking: run until 13:00.
+  // Edit the first booking: run until 1 PM.
   await setBookerName(page, FIRST_BOOKER);
   await firstBlock.click();
-  await dialog.getByLabel("End time").selectOption("13:00");
+  await pickTime(page, "End time", { hour: "1", minutes: "00", period: "PM" });
   await dialog.getByRole("button", { name: "Save changes" }).click();
   await expect(dialog).toBeHidden();
   const editedBlock = page.getByRole("button", {
-    name: `${FIRST_BOOKER} · 10:00–13:00`,
+    name: `${FIRST_BOOKER} · 10:00 AM–1:00 PM`,
   });
   await expect(editedBlock).toBeVisible();
 
@@ -195,7 +226,7 @@ test("an edit that lost a race shows the newer version", async ({ page }) => {
   await page.reload();
   await openNextWednesday(page);
   await page
-    .getByRole("button", { name: `${SECOND_BOOKER} · 17:00–18:00` })
+    .getByRole("button", { name: `${SECOND_BOOKER} · 5:00 PM–6:00 PM` })
     .click();
 
   // Someone else extends it while this dialog is open.
@@ -211,13 +242,13 @@ test("an edit that lost a race shows the newer version", async ({ page }) => {
   });
   expect(theirEdit.status()).toBe(200);
 
-  await dialog.getByLabel("End time").selectOption("18:30");
+  await pickTime(page, "End time", { hour: "6", minutes: "30", period: "PM" });
   await dialog.getByRole("button", { name: "Save changes" }).click();
 
   await expect(dialog.getByRole("alert")).toContainText(
     "Someone else changed this booking",
   );
-  await expect(dialog.getByLabel("End time")).toHaveValue("19:00");
+  await expectTime(page, "End time", "7:00 PM");
   await cancelThroughApi(page, await theirEdit.json());
 });
 

@@ -92,7 +92,7 @@ describe("computeTimeAtFraction", () => {
 describe("buildHourLabels", () => {
   it("labels each visible hour", () => {
     const labels = buildHourLabels();
-    expect(labels[0]).toBe("07:00");
+    expect(labels[0]).toBe("7 AM");
     expect(labels).toHaveLength(VISIBLE_HOUR_COUNT);
   });
 });
