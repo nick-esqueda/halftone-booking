@@ -6,7 +6,7 @@ import {
   buildFormValuesFromBooking,
   buildNewFormValues,
   type NewBookingDefaults,
-} from "./bookingForm";
+} from "./bookingFormValues";
 import { BookingHistory } from "./BookingHistory";
 import { CancelBookingSection } from "./CancelBookingSection";
 import { useBooking, useCreateBooking, useUpdateBooking } from "./useBookings";

@@ -20,7 +20,7 @@ import {
   hasValidRange,
   toggleEquipment,
   type BookingFormValues,
-} from "./bookingForm";
+} from "./bookingFormValues";
 import { ItemPicker } from "./ItemPicker";
 
 interface BookingFormProps {

@@ -16,7 +16,7 @@ import {
   BookingDialog,
   type BookingDialogRequest,
 } from "../features/bookings/BookingDialog";
-import type { NewBookingDefaults } from "../features/bookings/bookingForm";
+import type { NewBookingDefaults } from "../features/bookings/bookingFormValues";
 import { useBookerNameContext } from "../features/identity/bookerNameStore";
 import { Button } from "../components/ui/Button";
 import {

@@ -7,7 +7,7 @@ import {
   findFormProblems,
   type BookingFormValues,
   toggleEquipment,
-} from "./bookingForm";
+} from "./bookingFormValues";
 
 const VALID_VALUES: BookingFormValues = {
   bookerName: "Sam K",
