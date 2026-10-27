@@ -1,7 +1,7 @@
 import type { Booking } from "../../api/types";
 import { Button } from "../../components/ui/Button";
 import { formatDay, formatTime } from "../studio/studioTime";
-import { CancelBookingSection } from "./CancelBookingSection";
+import { CancelBookingButton } from "./CancelBookingButton";
 
 interface MyBookingsListProps {
   bookings: Booking[];
@@ -77,19 +77,13 @@ function MyBookingRow({ booking, timezone, onEdit }: MyBookingRowProps) {
       <td className={CELL_CLASS_NAME}>{itemNames}</td>
       <td className={`${CELL_CLASS_NAME} text-ink-muted`}>{booking.purpose}</td>
       <td className={`${CELL_CLASS_NAME} text-right`}>
-        <BookingActions booking={booking} onEdit={onEdit} />
+        <BookingActions booking={booking} timezone={timezone} onEdit={onEdit} />
       </td>
     </tr>
   );
 }
 
-function BookingActions({
-  booking,
-  onEdit,
-}: {
-  booking: Booking;
-  onEdit: (bookingId: number) => void;
-}) {
+function BookingActions({ booking, timezone, onEdit }: MyBookingRowProps) {
   if (booking.is_cancelled) {
     return <span className="text-xs text-ink-faint">Cancelled</span>;
   }
@@ -103,7 +97,7 @@ function BookingActions({
       >
         Edit
       </Button>
-      <CancelBookingSection booking={booking} isCompact />
+      <CancelBookingButton booking={booking} timezone={timezone} />
     </div>
   );
 }

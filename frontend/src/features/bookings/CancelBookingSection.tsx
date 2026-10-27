@@ -2,40 +2,27 @@ import { useState } from "react";
 
 import type { Booking } from "../../api/types";
 import { Button } from "../../components/ui/Button";
-import { useBookerNameContext } from "../identity/bookerNameStore";
-import { useCancelBooking } from "./useBookings";
+import { useCancelAsViewer } from "./useCancelAsViewer";
 
 interface CancelBookingSectionProps {
   booking: Booking;
   onCancelled?: () => void;
-  isCompact?: boolean;
 }
 
-/** A Cancel button that asks once, inline, before cancelling. */
+/** A Cancel button for the booking dialog's footer that asks once, inline, before cancelling. */
 export function CancelBookingSection({
   booking,
   onCancelled,
-  isCompact = false,
 }: CancelBookingSectionProps) {
   const [isConfirming, setIsConfirming] = useState(false);
-  const { bookerName } = useBookerNameContext();
-  const cancelBooking = useCancelBooking();
+  const cancelBooking = useCancelAsViewer(onCancelled);
 
   if (booking.is_cancelled) {
     return null;
   }
 
-  const confirmCancel = () =>
-    cancelBooking.mutate(
-      { booking, actorName: bookerName },
-      { onSuccess: onCancelled },
-    );
-  const wrapperClassName = isCompact
-    ? "flex items-center justify-end gap-2"
-    : "flex items-center justify-end gap-2 border-t border-line px-6 py-4";
-
   return (
-    <div className={wrapperClassName}>
+    <div className="flex items-center justify-end gap-2 border-t border-line px-6 py-4">
       {cancelBooking.error && (
         <span className="mr-auto text-sm text-danger">
           {cancelBooking.error.message}
@@ -47,7 +34,7 @@ export function CancelBookingSection({
           <Button onClick={() => setIsConfirming(false)}>Keep it</Button>
           <Button
             variant="danger"
-            onClick={confirmCancel}
+            onClick={() => cancelBooking.cancel(booking)}
             disabled={cancelBooking.isPending}
           >
             Cancel booking

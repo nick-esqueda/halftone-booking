@@ -52,7 +52,7 @@ export function formatLongDay(value: Date): string {
   return format(value, LONG_DAY_FORMAT);
 }
 
-/** "Thu 29 Oct, 13:00 – 15:00", or both days when the range spans days. */
+/** "Thu 29 Oct, 1:00 PM – 3:00 PM", or both days when the range spans days. */
 export function formatTimeRange(
   startsAt: string,
   endsAt: string,
