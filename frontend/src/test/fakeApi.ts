@@ -28,6 +28,19 @@ export function respond(status: number, body: unknown): Response {
   });
 }
 
+/** A non-JSON reply, like the HTML page a proxy sends when the API is down. */
+export function respondWithText(status: number, text: string): Response {
+  return new Response(text, {
+    status,
+    headers: { "Content-Type": "text/html" },
+  });
+}
+
+/** Simulates the network failing: fetch rejects, as when the server is gone. */
+export function failNetwork(): never {
+  throw new TypeError("Failed to fetch");
+}
+
 async function readBody(request: Request): Promise<unknown> {
   if (NO_BODY_METHODS.includes(request.method)) {
     return undefined;

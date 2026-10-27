@@ -1,4 +1,5 @@
 import { Dialog } from "../../components/ui/Dialog";
+import { LoadError } from "../../components/ui/LoadError";
 import { useStudioConfig } from "../studio/useStudioConfig";
 import { BookingForm } from "./BookingForm";
 import {
@@ -73,8 +74,23 @@ function EditBookingDialog({
   onClose: () => void;
 }) {
   const { data: config } = useStudioConfig();
-  const { data: booking } = useBooking(bookingId);
+  const bookingQuery = useBooking(bookingId);
+  const booking = bookingQuery.data;
   const updateBooking = useUpdateBooking(bookingId);
+  if (bookingQuery.error) {
+    return (
+      <Dialog isOpen title="Booking" onClose={onClose}>
+        <div className="px-6 py-5">
+          <LoadError
+            subject="this booking"
+            error={bookingQuery.error}
+            onRetry={() => void bookingQuery.refetch()}
+            isRetrying={bookingQuery.isFetching}
+          />
+        </div>
+      </Dialog>
+    );
+  }
   if (config === undefined || booking === undefined) {
     return null;
   }

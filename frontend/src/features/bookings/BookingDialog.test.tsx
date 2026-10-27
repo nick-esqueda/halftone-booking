@@ -1,12 +1,10 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { render, screen, waitFor } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Booking, EquipmentAvailability } from "../../api/types";
-import { installFakeApi, respond } from "../../test/fakeApi";
-import { BookerNameProvider } from "../identity/BookerNameContext";
+import { failNetwork, installFakeApi, respond } from "../../test/fakeApi";
+import { renderWithProviders } from "../../test/renderWithProviders";
 import { BookingDialog, type BookingDialogRequest } from "./BookingDialog";
 
 const CAMERA_A = {
@@ -63,15 +61,7 @@ const BASE_ROUTES = {
 
 function renderDialog(request: BookingDialogRequest) {
   const onClose = vi.fn();
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={queryClient}>
-      <BookerNameProvider>{children}</BookerNameProvider>
-    </QueryClientProvider>
-  );
-  render(<BookingDialog request={request} onClose={onClose} />, { wrapper });
+  renderWithProviders(<BookingDialog request={request} onClose={onClose} />);
   return onClose;
 }
 
@@ -157,6 +147,37 @@ describe("new booking", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("keeps the form filled in when the server can't be reached", async () => {
+    installFakeApi({ ...BASE_ROUTES, "POST /api/bookings": failNetwork });
+    const onClose = renderDialog(NEW_BOOKING_REQUEST);
+
+    await userEvent.type(await screen.findByLabelText("Purpose"), "Interview");
+    await userEvent.click(screen.getByRole("button", { name: "Book 1 item" }));
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Can't reach the booking server");
+    expect(alert).toHaveTextContent("Your changes are still here");
+    expect(screen.getByLabelText("Purpose")).toHaveValue("Interview");
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("says when it can't check which items are free", async () => {
+    installFakeApi({
+      ...BASE_ROUTES,
+      "GET /api/availability": () =>
+        respond(503, {
+          code: "service_unavailable",
+          message: "Booking is temporarily unavailable.",
+          conflicts: [],
+        }),
+    });
+    renderDialog(NEW_BOOKING_REQUEST);
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load which items are free.",
+    );
+  });
+
   it("checks the form before asking the server", async () => {
     const api = installFakeApi({ ...BASE_ROUTES });
     renderDialog(NEW_BOOKING_REQUEST);
@@ -229,6 +250,29 @@ describe("editing a booking", () => {
     await waitFor(() =>
       expect(screen.getByLabelText("End time")).toHaveValue("14:00"),
     );
+  });
+
+  it("offers to try again when the booking can't be loaded", async () => {
+    const api = installFakeApi({
+      ...BASE_ROUTES,
+      "GET /api/bookings/7": () =>
+        respond(503, {
+          code: "service_unavailable",
+          message: "Booking is temporarily unavailable.",
+          conflicts: [],
+        }),
+    });
+    renderDialog({ kind: "edit", bookingId: 7 });
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Couldn't load this booking.",
+    );
+    api.setRoute("GET /api/bookings/7", () => respond(200, EXISTING_BOOKING));
+    await userEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(
+      await screen.findByRole("button", { name: "Save changes" }),
+    ).toBeInTheDocument();
   });
 
   it("asks before cancelling, then cancels with the version", async () => {

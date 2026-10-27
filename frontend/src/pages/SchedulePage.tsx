@@ -19,6 +19,7 @@ import {
 import type { NewBookingDefaults } from "../features/bookings/bookingForm";
 import { useBookerNameContext } from "../features/identity/bookerNameStore";
 import { Button } from "../components/ui/Button";
+import { LoadError } from "../components/ui/LoadError";
 import {
   addHoursToWallClock,
   buildDayRange,
@@ -33,7 +34,18 @@ import { describeZone } from "../features/studio/viewerTime";
 const ALL_CATEGORIES = "all";
 
 export function SchedulePage() {
-  const { data: config } = useStudioConfig();
+  const configQuery = useStudioConfig();
+  const config = configQuery.data;
+  if (configQuery.error) {
+    return (
+      <LoadError
+        subject="the studio settings"
+        error={configQuery.error}
+        onRetry={() => void configQuery.refetch()}
+        isRetrying={configQuery.isFetching}
+      />
+    );
+  }
   if (config === undefined) {
     return <p className="text-sm text-ink-muted">Loading…</p>;
   }
@@ -123,21 +135,34 @@ function Schedule({
       <p className="text-sm text-ink-muted">
         Times are studio time: {describeZone(timezone)}
       </p>
-      <div className="rounded-xl border border-line bg-surface p-2">
-        <DayTimeline
-          day={selectedDay}
-          rows={rows}
-          timezone={timezone}
-          timeStepMinutes={timeStepMinutes}
-          currentBookerName={bookerName}
-          onBookingClick={(bookingId) =>
-            setDialogRequest({ kind: "edit", bookingId })
-          }
-          onEmptySlotClick={(equipmentId, startTime) =>
-            openNewBooking([equipmentId], startTime)
-          }
+      {availability.error && (
+        <LoadError
+          subject="the schedule"
+          error={availability.error}
+          onRetry={() => void availability.refetch()}
+          isRetrying={availability.isFetching}
         />
-      </div>
+      )}
+      {availability.isPending && (
+        <p className="text-sm text-ink-muted">Loading the schedule…</p>
+      )}
+      {availability.data && (
+        <div className="rounded-xl border border-line bg-surface p-2">
+          <DayTimeline
+            day={selectedDay}
+            rows={rows}
+            timezone={timezone}
+            timeStepMinutes={timeStepMinutes}
+            currentBookerName={bookerName}
+            onBookingClick={(bookingId) =>
+              setDialogRequest({ kind: "edit", bookingId })
+            }
+            onEmptySlotClick={(equipmentId, startTime) =>
+              openNewBooking([equipmentId], startTime)
+            }
+          />
+        </div>
+      )}
       <p className="text-xs text-ink-muted">
         Click an empty slot to book it, or a booking to see or change it.
       </p>
