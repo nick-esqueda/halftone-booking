@@ -30,7 +30,7 @@ const MIN_TRACK_WIDTH_PX = VISIBLE_HOUR_COUNT * MIN_HOUR_WIDTH_PX;
 
 // The item names stay pinned on the left while the hours scroll sideways.
 const NAME_COLUMN_CLASS_NAME =
-  "sticky left-0 z-20 w-28 shrink-0 bg-surface pr-2 sm:w-40";
+  "sticky left-0 z-[2] w-28 shrink-0 bg-surface pr-2 sm:w-40";
 
 /**
  * One day: one row per item, grouped by category, with hours running left to
@@ -184,7 +184,7 @@ function NowLine({ percent }: { percent: number }) {
   return (
     <div
       data-testid="now-line"
-      className="pointer-events-none absolute inset-y-0 z-10 w-0.5 bg-danger"
+      className="pointer-events-none absolute inset-y-0 z-[1] w-0.5 bg-danger"
       style={{ left: `${percent}%` }}
     />
   );
