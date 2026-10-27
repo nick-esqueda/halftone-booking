@@ -3,6 +3,7 @@ import { addWeeks, startOfDay } from "date-fns";
 import { useState } from "react";
 
 import {
+  CURRENT_TIME_REFRESH_MS,
   DAY_VIEW_END_HOUR,
   DAY_VIEW_START_HOUR,
   DEFAULT_BOOKING_HOURS,
@@ -31,6 +32,7 @@ import {
   getWeekStart,
   pickDefaultStartTime,
 } from "../features/studio/studioTime";
+import { useCurrentTime } from "../features/studio/useCurrentTime";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
 import { formatHourLabel } from "../features/studio/clockTime";
 import { describeZone } from "../features/studio/viewerTime";
@@ -68,7 +70,8 @@ function Schedule({
   timezone: string;
   timeStepMinutes: number;
 }) {
-  const today = new TZDate(new Date(), timezone);
+  const now = useCurrentTime(CURRENT_TIME_REFRESH_MS);
+  const today = new TZDate(now, timezone);
   const todayStart = new TZDate(startOfDay(today), timezone);
   const [selectedDay, setSelectedDay] = useState(todayStart);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);

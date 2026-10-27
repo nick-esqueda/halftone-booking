@@ -21,7 +21,8 @@ export const DATE_INPUT_FORMAT = "yyyy-MM-dd";
 export const TIME_INPUT_FORMAT = "HH:mm";
 const TIME_FORMAT = "h:mm a";
 const DAY_FORMAT = "EEE d MMM";
-const SHORT_DAY_FORMAT = "EEE d";
+const WEEKDAY_FORMAT = "EEE";
+const DAY_OF_MONTH_FORMAT = "d";
 const LONG_DAY_FORMAT = "EEEE, MMMM d";
 
 export function toStudioDate(value: string | Date, timezone: string): TZDate {
@@ -37,8 +38,14 @@ export function formatDay(value: string | Date, timezone: string): string {
   return format(toStudioDate(value, timezone), DAY_FORMAT);
 }
 
-export function formatShortDay(value: Date): string {
-  return format(value, SHORT_DAY_FORMAT);
+/** "Wed" */
+export function formatWeekday(value: Date): string {
+  return format(value, WEEKDAY_FORMAT);
+}
+
+/** "28" */
+export function formatDayOfMonth(value: Date): string {
+  return format(value, DAY_OF_MONTH_FORMAT);
 }
 
 export function formatLongDay(value: Date): string {

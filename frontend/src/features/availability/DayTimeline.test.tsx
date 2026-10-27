@@ -104,13 +104,15 @@ describe("DayTimeline", () => {
     expect(onEmptySlotClick).not.toHaveBeenCalled();
   });
 
-  it("marks the current time on today", () => {
+  it("marks the current time on today, labelled with the time", () => {
     renderTimeline([CAMERA_A]);
     expect(screen.getByTestId("now-line")).toBeInTheDocument();
+    expect(screen.getByTestId("now-label")).toHaveTextContent("Now 10:30 AM");
   });
 
   it("leaves out the current-time line on other days", () => {
     renderTimeline([CAMERA_A], { now: FRIDAY_10_30 });
     expect(screen.queryByTestId("now-line")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("now-label")).not.toBeInTheDocument();
   });
 });

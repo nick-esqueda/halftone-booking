@@ -8,6 +8,8 @@ export const DAY_VIEW_START_HOUR = 7;
 export const DAY_VIEW_END_HOUR = 22;
 // Narrower than this and the timeline scrolls sideways instead of squashing.
 export const MIN_HOUR_WIDTH_PX = 56;
+// How often the current-time line on the timeline moves.
+export const CURRENT_TIME_REFRESH_MS = 60_000;
 
 export const DAYS_PER_WEEK = 7;
 

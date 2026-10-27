@@ -2,7 +2,7 @@ import type { TZDate } from "@date-fns/tz";
 import { isSameDay } from "date-fns";
 
 import { Button } from "../../components/ui/Button";
-import { formatShortDay } from "../studio/studioTime";
+import { formatDayOfMonth, formatWeekday } from "../studio/studioTime";
 
 interface DayTabsProps {
   days: TZDate[];
@@ -51,6 +51,12 @@ export function DayTabs({
   );
 }
 
+// A fixed width per tab, so the week arrows stay put whatever the dates
+// are and whichever tab is bold.
+// On phones the weekday sits above the date to fit the narrower tab.
+const DAY_TAB_CLASS_NAME =
+  "flex w-10 shrink-0 flex-col items-center border-b-2 py-2 text-sm sm:w-20 sm:flex-row sm:justify-center sm:gap-1";
+
 interface DayTabProps {
   day: TZDate;
   isSelected: boolean;
@@ -69,10 +75,13 @@ function DayTab({ day, isSelected, isToday, onSelect }: DayTabProps) {
       role="tab"
       aria-selected={isSelected}
       onClick={onSelect}
-      className={`border-b-2 px-3 py-2 text-sm ${selectedClassName}`}
+      className={`${DAY_TAB_CLASS_NAME} ${selectedClassName}`}
     >
-      {formatShortDay(day)}
-      {todayMarker}
+      <span>{formatWeekday(day)}</span>{" "}
+      <span>
+        {formatDayOfMonth(day)}
+        {todayMarker}
+      </span>
     </button>
   );
 }

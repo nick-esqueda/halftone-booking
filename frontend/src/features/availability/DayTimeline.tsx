@@ -39,31 +39,40 @@ const NAME_COLUMN_CLASS_NAME =
 export function DayTimeline(props: DayTimelineProps) {
   const groups = groupByCategory(props.rows);
   const nowPercent = computeNowPercent(props.day, props.now);
+  const nowLabel = formatTime(props.now.toISOString(), props.timezone);
 
   return (
     <div className="overflow-x-auto">
-      <HourHeader />
-      {groups.map((group) => (
-        <section
-          key={group.category}
-          aria-label={getCategoryStyle(group.category).label}
-        >
-          <CategoryHeading category={group.category} />
-          {group.rows.map((row) => (
-            <EquipmentRow
-              key={row.equipment.id}
-              row={row}
-              nowPercent={nowPercent}
-              {...props}
-            />
-          ))}
-        </section>
-      ))}
+      {/* As wide as the scrolled content, so the pinned names stay pinned to the end. */}
+      <div className="w-max min-w-full">
+        <HourHeader nowPercent={nowPercent} nowLabel={nowLabel} />
+        {groups.map((group) => (
+          <section
+            key={group.category}
+            aria-label={getCategoryStyle(group.category).label}
+          >
+            <CategoryHeading category={group.category} />
+            {group.rows.map((row) => (
+              <EquipmentRow
+                key={row.equipment.id}
+                row={row}
+                nowPercent={nowPercent}
+                {...props}
+              />
+            ))}
+          </section>
+        ))}
+      </div>
     </div>
   );
 }
 
-function HourHeader() {
+interface HourHeaderProps {
+  nowPercent: number | null;
+  nowLabel: string;
+}
+
+function HourHeader({ nowPercent, nowLabel }: HourHeaderProps) {
   return (
     <div className="flex">
       <div
@@ -72,20 +81,36 @@ function HourHeader() {
         Equipment
       </div>
       <div
-        className="relative h-6 flex-1"
+        className="relative h-10 flex-1"
         style={{ minWidth: MIN_TRACK_WIDTH_PX }}
       >
         {HOUR_LABELS.map((label, index) => (
           <span
             key={label}
-            className="absolute pl-1 text-xs tabular-nums text-ink-faint"
+            className="absolute top-0 pl-1 text-xs tabular-nums text-ink-faint"
             style={{ left: `${(index / VISIBLE_HOUR_COUNT) * 100}%` }}
           >
             {label}
           </span>
         ))}
+        {nowPercent !== null && (
+          <NowLabel percent={nowPercent} label={nowLabel} />
+        )}
       </div>
     </div>
+  );
+}
+
+/** A small "Now 3:44 PM" tag on top of the current-time line. */
+function NowLabel({ percent, label }: { percent: number; label: string }) {
+  return (
+    <span
+      data-testid="now-label"
+      className="absolute bottom-1 z-[1] -translate-x-1/2 whitespace-nowrap rounded bg-danger px-1.5 py-0.5 text-[10px] font-semibold leading-none text-surface"
+      style={{ left: `${percent}%` }}
+    >
+      Now {label}
+    </span>
   );
 }
 
