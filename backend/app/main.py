@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.errors import register_error_handlers
-from app.routers import bookings, equipment
+from app.routers import bookings, equipment, health
 
 API_TITLE = "Halftone Booking API"
 
@@ -23,11 +23,7 @@ def create_app() -> FastAPI:
     register_error_handlers(app)
     app.include_router(equipment.router)
     app.include_router(bookings.router)
-
-    @app.get("/api/health", tags=["health"])
-    def check_health() -> dict[str, str]:
-        return {"status": "ok"}
-
+    app.include_router(health.router)
     return app
 
 

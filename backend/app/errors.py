@@ -6,14 +6,22 @@ Services raise these errors; they never build HTTP responses themselves.
 
 To add a new error: subclass `BookingError`, give it a `code`, and add the
 class to `HTTP_STATUS_BY_ERROR` with the status it should return.
+
+Failures outside the booking rules use the same shape: a database outage
+becomes a 503 and any other unexpected error a 500, so the UI can always
+show a readable message.
 """
 
+import logging
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import InterfaceError, OperationalError
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -103,6 +111,35 @@ async def handle_request_validation_error(
     return JSONResponse(status_code=422, content=body)
 
 
+# Errors that mean the database can't be reached right now. To treat another
+# infrastructure error as "temporarily unavailable", add its class here.
+UNAVAILABLE_ERRORS: tuple[type[Exception], ...] = (OperationalError, InterfaceError)
+
+SERVICE_UNAVAILABLE_BODY = {
+    "code": "service_unavailable",
+    "message": "Booking is temporarily unavailable. Please try again in a minute.",
+    "conflicts": [],
+}
+INTERNAL_ERROR_BODY = {
+    "code": "internal_error",
+    "message": "Something went wrong on our side. Please try again.",
+    "conflicts": [],
+}
+
+
+async def handle_unavailable_error(request: Request, error: Exception) -> JSONResponse:
+    logger.error("Database unavailable during %s: %s", request.url.path, error)
+    return JSONResponse(status_code=503, content=SERVICE_UNAVAILABLE_BODY)
+
+
+async def handle_unexpected_error(request: Request, error: Exception) -> JSONResponse:
+    logger.exception("Unexpected error during %s", request.url.path, exc_info=error)
+    return JSONResponse(status_code=500, content=INTERNAL_ERROR_BODY)
+
+
 def register_error_handlers(app: FastAPI) -> None:
     app.add_exception_handler(BookingError, handle_booking_error)
     app.add_exception_handler(RequestValidationError, handle_request_validation_error)
+    for error_class in UNAVAILABLE_ERRORS:
+        app.add_exception_handler(error_class, handle_unavailable_error)
+    app.add_exception_handler(Exception, handle_unexpected_error)

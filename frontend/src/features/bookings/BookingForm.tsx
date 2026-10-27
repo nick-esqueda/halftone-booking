@@ -1,9 +1,10 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 
-import { ApiError } from "../../api/client";
+import { ApiError, CLIENT_ERROR_CODES } from "../../api/client";
 import type { Booking } from "../../api/types";
 import { Button } from "../../components/ui/Button";
 import { ErrorBanner } from "../../components/ui/ErrorBanner";
+import { LoadError } from "../../components/ui/LoadError";
 import {
   FIELD_LABEL_CLASS_NAME,
   TEXT_INPUT_CLASS_NAME,
@@ -83,6 +84,16 @@ export function BookingForm(props: BookingFormProps) {
       />
 
       <Field label="Items">
+        {availability.error && (
+          <div className="mb-2">
+            <LoadError
+              subject="which items are free"
+              error={availability.error}
+              onRetry={() => void availability.refetch()}
+              isRetrying={availability.isFetching}
+            />
+          </div>
+        )}
         <ItemPicker
           rows={availability.data?.equipment ?? []}
           selectedIds={values.equipmentIds}
@@ -231,10 +242,16 @@ function TimeSelect({ label, value, options, onChange }: TimeSelectProps) {
 }
 
 // Extra guidance shown under an API error, by error code.
+const TRY_AGAIN_HINT =
+  "Nothing was saved. Your changes are still here, so you can try again.";
+
 const SAVE_ERROR_HINTS: Partial<Record<string, string>> = {
   conflict: "Nothing was saved. Untick the taken item or pick another time.",
   stale_version:
     "Nothing was saved. The latest version is shown now; make your change again.",
+  [CLIENT_ERROR_CODES.network]: TRY_AGAIN_HINT,
+  [CLIENT_ERROR_CODES.unavailable]: TRY_AGAIN_HINT,
+  [CLIENT_ERROR_CODES.internal]: TRY_AGAIN_HINT,
 };
 
 function FormErrors({

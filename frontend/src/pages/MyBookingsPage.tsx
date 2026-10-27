@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import type { Booking } from "../api/types";
+import { LoadError } from "../components/ui/LoadError";
 import {
   BookingDialog,
   type BookingDialogRequest,
@@ -22,8 +23,11 @@ function sortByStart(bookings: Booking[]): Booking[] {
 
 export function MyBookingsPage() {
   const { bookerName } = useBookerNameContext();
-  const { data: config } = useStudioConfig();
-  const { data: bookings = [] } = useBookingsFor(bookerName);
+  const configQuery = useStudioConfig();
+  const bookingsQuery = useBookingsFor(bookerName);
+  const config = configQuery.data;
+  const bookings = bookingsQuery.data ?? [];
+  const loadError = configQuery.error ?? bookingsQuery.error;
   const [dialogRequest, setDialogRequest] =
     useState<BookingDialogRequest | null>(null);
 
@@ -32,6 +36,20 @@ export function MyBookingsPage() {
       <p className="text-sm text-ink-muted">
         Enter your name in the top right to see your bookings.
       </p>
+    );
+  }
+  if (loadError) {
+    const retryLoading = () => {
+      void configQuery.refetch();
+      void bookingsQuery.refetch();
+    };
+    return (
+      <LoadError
+        subject="your bookings"
+        error={loadError}
+        onRetry={retryLoading}
+        isRetrying={configQuery.isFetching || bookingsQuery.isFetching}
+      />
     );
   }
   if (config === undefined) {

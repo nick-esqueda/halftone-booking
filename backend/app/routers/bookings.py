@@ -5,20 +5,21 @@ from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Query, status
 
 from app.dependencies import BookingServiceDependency, SettingsDependency
+from app.routers.responses import ERROR_MODEL, SERVER_ERROR_RESPONSES
 from app.schemas import (
     BookingCancelRequest,
     BookingCreateRequest,
     BookingEventResponse,
     BookingResponse,
     BookingUpdateRequest,
-    ErrorResponse,
 )
 from app.services.booking_presenter import build_booking_response
 
 ERROR_RESPONSES: dict[int | str, dict[str, object]] = {
-    404: {"model": ErrorResponse},
-    409: {"model": ErrorResponse},
-    422: {"model": ErrorResponse},
+    **SERVER_ERROR_RESPONSES,
+    404: ERROR_MODEL,
+    409: ERROR_MODEL,
+    422: ERROR_MODEL,
 }
 
 router = APIRouter(prefix="/api", tags=["bookings"], responses=ERROR_RESPONSES)

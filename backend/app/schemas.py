@@ -107,3 +107,7 @@ class ErrorResponse(BaseModel):
     code: str
     message: str
     conflicts: list[ConflictResponse] = []
+
+
+class HealthResponse(BaseModel):
+    status: str

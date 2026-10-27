@@ -35,3 +35,9 @@ export function getCategoryStyle(category: string): CategoryStyle {
 }
 
 export const CATEGORY_FILTERS = ["all", ...Object.keys(CATEGORY_STYLES)];
+
+// React Router v7 behaviour, opted into now so the upgrade is a no-op.
+export const ROUTER_FUTURE_FLAGS = {
+  v7_startTransition: true,
+  v7_relativeSplatPath: true,
+};
