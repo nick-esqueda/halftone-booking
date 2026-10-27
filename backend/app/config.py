@@ -26,6 +26,9 @@ class Settings(BaseSettings):
     # A new booking may start this many minutes in the past, so "book it now" works.
     start_grace_minutes: int = 5
 
+    # Longest a single booking may last, in days of studio wall-clock time.
+    max_booking_days: int = 7
+
     # Longest name and purpose we accept, in characters.
     max_booker_name_length: int = 80
     max_purpose_length: int = 200

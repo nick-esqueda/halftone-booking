@@ -135,6 +135,28 @@ describe("new booking", () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it("shows a rule the server enforces, like the 7-day limit", async () => {
+    installFakeApi({
+      ...BASE_ROUTES,
+      "POST /api/bookings": () =>
+        respond(422, {
+          code: "booking_too_long",
+          message: "A booking can last at most 7 days.",
+          conflicts: [],
+        }),
+    });
+    const onClose = renderDialog(NEW_BOOKING_REQUEST);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Book 1 item" }),
+    );
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "A booking can last at most 7 days.",
+    );
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it("checks the form before asking the server", async () => {
     const api = installFakeApi({ ...BASE_ROUTES });
     renderDialog(NEW_BOOKING_REQUEST);

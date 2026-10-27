@@ -1,6 +1,7 @@
 """Unit tests for each booking rule, without the database."""
 
-from datetime import datetime, timedelta
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -104,6 +105,38 @@ def test_start_just_past_grace_period_is_rejected() -> None:
         ends_at=datetime(2026, 10, 27, 11, 0, tzinfo=ZONE),
     )
     assert get_error_code(draft, build_context()) == "start_in_past"
+
+
+class TestBookingLength:
+    """Bookings may last up to 7 days of studio wall-clock time."""
+
+    start = datetime(2026, 10, 29, 9, 0, tzinfo=ZONE)
+
+    def test_exactly_seven_days_is_allowed(self) -> None:
+        draft = build_draft(
+            starts_at=self.start, ends_at=self.start + timedelta(days=7)
+        )
+        assert get_error_code(draft, build_context()) is None
+
+    def test_one_step_over_seven_days_is_rejected(self) -> None:
+        too_late = self.start + timedelta(days=7, minutes=15)
+        draft = build_draft(starts_at=self.start, ends_at=too_late)
+        assert get_error_code(draft, build_context()) == "booking_too_long"
+
+    def test_seven_days_across_daylight_saving_is_allowed(self) -> None:
+        # Nov 1 has 25 hours, so this week is 169 real hours long.
+        start_in_utc = self.start.astimezone(UTC)
+        end_in_utc = datetime(2026, 11, 5, 9, 0, tzinfo=ZONE).astimezone(UTC)
+        draft = build_draft(starts_at=start_in_utc, ends_at=end_in_utc)
+        assert get_error_code(draft, build_context()) is None
+
+    def test_limit_comes_from_settings(self) -> None:
+        draft = build_draft(
+            starts_at=self.start, ends_at=self.start + timedelta(days=2)
+        )
+        context = build_context()
+        short_limit = replace(context, settings=Settings(max_booking_days=1))
+        assert get_error_code(draft, short_limit) == "booking_too_long"
 
 
 class TestEditingStartedBooking:

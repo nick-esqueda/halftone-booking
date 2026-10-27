@@ -89,6 +89,21 @@ def check_end_after_start(
     )
 
 
+def check_length_within_limit(
+    draft: BookingDraft, context: BookingCheckContext
+) -> InvalidBookingError | None:
+    """Counted in studio wall-clock days, so a daylight-saving change doesn't
+    turn a 7-day booking into one hour too long."""
+    max_days = context.settings.max_booking_days
+    studio_start = draft.starts_at.astimezone(context.studio_zone)
+    latest_end = studio_start + timedelta(days=max_days)
+    if draft.ends_at <= latest_end:
+        return None
+    return InvalidBookingError(
+        "booking_too_long", f"A booking can last at most {max_days} days."
+    )
+
+
 def check_time_step(
     draft: BookingDraft, context: BookingCheckContext
 ) -> InvalidBookingError | None:
@@ -164,6 +179,7 @@ BOOKING_CHECKS: list[BookingCheck] = [
     check_name_present,
     check_text_lengths,
     check_end_after_start,
+    check_length_within_limit,
     check_time_step,
     check_no_duplicate_items,
     check_items_bookable,

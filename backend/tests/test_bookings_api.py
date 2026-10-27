@@ -136,6 +136,22 @@ def test_rule_errors_are_422(client: TestClient) -> None:
     assert response.json()["code"] == "off_time_step"
 
 
+def test_booking_longer_than_a_week_is_refused(client: TestClient) -> None:
+    response = create_booking(
+        client, starts_at="2026-10-29T09:00", ends_at="2026-11-05T09:15"
+    )
+    assert response.status_code == 422
+    assert response.json()["code"] == "booking_too_long"
+
+
+def test_editing_a_booking_past_a_week_is_refused(client: TestClient) -> None:
+    booking = create_booking_ok(
+        client, starts_at="2026-10-29T09:00", ends_at="2026-11-05T09:00"
+    )
+    response = update_booking(client, booking, ends_at="2026-11-06T09:00")
+    assert response.json()["code"] == "booking_too_long"
+
+
 def test_studio_config(client: TestClient) -> None:
     config = client.get("/api/config").json()
     assert config == {"timezone": "America/Chicago", "time_step_minutes": 15}
