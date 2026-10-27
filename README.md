@@ -4,7 +4,7 @@ Equipment booking for the Halftone studio: see who has which camera, light or ro
 
 - **Backend:** Python 3.12, FastAPI, SQLAlchemy 2, Alembic, PostgreSQL 16
 - **Frontend:** React 18 + TypeScript, Vite, TanStack Query, Tailwind
-- **Style:** every change follows [docs/CODE_STYLE.md](docs/CODE_STYLE.md) (Black for Python, Prettier for TypeScript)
+- **Style:** every change follows [CODE-STYLE.md](CODE-STYLE.md) (Black for Python, Prettier for TypeScript)
 
 ## Run it
 
