@@ -7,8 +7,12 @@
 BACKEND := cd backend &&
 FRONTEND := cd frontend &&
 UV := uv run
-TEST_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:5432/booking_test
-LOCAL_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:5432/booking
+
+# Read DB_PORT from .env so these URLs match the port docker-compose publishes.
+-include .env
+DB_PORT ?= 5432
+TEST_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT)/booking_test
+LOCAL_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT)/booking
 
 .DEFAULT_GOAL := help
 .PHONY: help up down logs install migrate seed dev-native api web format lint test test-backend test-frontend e2e openapi check
