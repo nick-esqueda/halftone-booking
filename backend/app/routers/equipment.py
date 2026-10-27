@@ -10,15 +10,17 @@ from app.dependencies import (
     SettingsDependency,
 )
 from app.repositories.equipment_repository import EquipmentRepository
+from app.routers.responses import ERROR_MODEL, SERVER_ERROR_RESPONSES
 from app.schemas import (
     AvailabilityResponse,
     EquipmentResponse,
-    ErrorResponse,
     StudioConfigResponse,
 )
 
 router = APIRouter(
-    prefix="/api", tags=["equipment"], responses={422: {"model": ErrorResponse}}
+    prefix="/api",
+    tags=["equipment"],
+    responses={**SERVER_ERROR_RESPONSES, 422: ERROR_MODEL},
 )
 
 
