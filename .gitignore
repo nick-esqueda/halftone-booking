@@ -6,13 +6,15 @@ __pycache__/
 .ruff_cache/
 .pytest_cache/
 .hypothesis/
+.coverage
 
 # Node
 node_modules/
 frontend/dist/
+frontend/coverage/
+frontend/.vite/
 frontend/playwright-report/
 frontend/test-results/
-frontend/node_modules/.tmp/
 
 # Local settings
 .env
