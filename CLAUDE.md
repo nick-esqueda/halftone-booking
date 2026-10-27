@@ -4,7 +4,7 @@ Studio equipment booking app: React + TypeScript frontend, Python FastAPI backen
 
 ## Code style (required)
 
-Every code change must follow [docs/CODE_STYLE.md](docs/CODE_STYLE.md). Read it before writing or reviewing code.
+Before making any code change, read [CODE-STYLE.md](CODE-STYLE.md) and follow it. This applies to writing, refactoring and reviewing code.
 
 - Python is formatted with Black (default settings).
 - TypeScript and JavaScript are formatted with Prettier (default settings).
