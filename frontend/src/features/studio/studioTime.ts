@@ -97,16 +97,23 @@ export function buildTimeOptions(stepMinutes: number): string[] {
   });
 }
 
+/** The moment a studio date and time ("2026-10-29", "13:00") refers to. */
+export function parseWallClock(
+  parts: WallClockParts,
+  timezone: string,
+): TZDate {
+  const [year, month, day] = parts.date.split("-").map(Number);
+  const [hour, minute] = parts.time.split(":").map(Number);
+  return new TZDate(year, month - 1, day, hour, minute, timezone);
+}
+
 /** The wall-clock date and time `hours` after the given studio date and time. */
 export function addHoursToWallClock(
   parts: WallClockParts,
   hours: number,
   timezone: string,
 ): WallClockParts {
-  const [year, month, day] = parts.date.split("-").map(Number);
-  const [hour, minute] = parts.time.split(":").map(Number);
-  const start = new TZDate(year, month - 1, day, hour, minute, timezone);
-  const end = addHours(start, hours);
+  const end = addHours(parseWallClock(parts, timezone), hours);
   return {
     date: format(end, DATE_INPUT_FORMAT),
     time: format(end, TIME_INPUT_FORMAT),

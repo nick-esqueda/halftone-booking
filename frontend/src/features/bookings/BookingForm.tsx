@@ -11,9 +11,11 @@ import {
 import { useAvailability } from "../availability/useAvailability";
 import { NameInput } from "../identity/NameInput";
 import { buildTimeOptions } from "../studio/studioTime";
+import { describeInViewerTime, getViewerTimezone } from "../studio/viewerTime";
 import {
   findFormProblems,
   getEndWallClock,
+  getRangeInstants,
   getStartWallClock,
   hasValidRange,
   toggleEquipment,
@@ -75,6 +77,7 @@ export function BookingForm(props: BookingFormProps) {
 
       <TimeRangeFields
         values={values}
+        timezone={props.timezone}
         timeStepMinutes={props.timeStepMinutes}
         onChange={updateValues}
       />
@@ -140,16 +143,19 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 
 interface TimeRangeFieldsProps {
   values: BookingFormValues;
+  timezone: string;
   timeStepMinutes: number;
   onChange: (changes: Partial<BookingFormValues>) => void;
 }
 
 function TimeRangeFields({
   values,
+  timezone,
   timeStepMinutes,
   onChange,
 }: TimeRangeFieldsProps) {
   const timeOptions = buildTimeOptions(timeStepMinutes);
+  const viewerTimeHint = describeViewerTimeHint(values, timezone);
   return (
     <Field label="When (studio time)">
       <div className="grid grid-cols-[auto_1fr_auto] items-center gap-2">
@@ -182,8 +188,22 @@ function TimeRangeFields({
           onChange={(endTime) => onChange({ endTime })}
         />
       </div>
+      {viewerTimeHint && (
+        <p className="mt-2 text-xs text-ink-muted">That's {viewerTimeHint}.</p>
+      )}
     </Field>
   );
+}
+
+function describeViewerTimeHint(
+  values: BookingFormValues,
+  timezone: string,
+): string | null {
+  if (!hasValidRange(values)) {
+    return null;
+  }
+  const { startsAt, endsAt } = getRangeInstants(values, timezone);
+  return describeInViewerTime(startsAt, endsAt, timezone, getViewerTimezone());
 }
 
 interface TimeSelectProps {

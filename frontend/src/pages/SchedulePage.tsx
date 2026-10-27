@@ -28,6 +28,7 @@ import {
   pickDefaultStartTime,
 } from "../features/studio/studioTime";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
+import { describeZone } from "../features/studio/viewerTime";
 
 const ALL_CATEGORIES = "all";
 
@@ -119,6 +120,9 @@ function Schedule({
           + New booking
         </Button>
       </div>
+      <p className="text-sm text-ink-muted">
+        Times are studio time: {describeZone(timezone)}
+      </p>
       <div className="rounded-xl border border-line bg-surface p-2">
         <DayTimeline
           day={selectedDay}
@@ -135,8 +139,7 @@ function Schedule({
         />
       </div>
       <p className="text-xs text-ink-muted">
-        Click an empty slot to book it, or a booking to see or change it. Times
-        are studio time.
+        Click an empty slot to book it, or a booking to see or change it.
       </p>
       <BookingDialog
         request={dialogRequest}

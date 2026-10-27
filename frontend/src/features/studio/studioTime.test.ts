@@ -6,6 +6,7 @@ import {
   buildDayRange,
   buildTimeOptions,
   getWeekStart,
+  parseWallClock,
   pickDefaultStartTime,
   splitWallClockTime,
 } from "./studioTime";
@@ -84,5 +85,12 @@ describe("pickDefaultStartTime", () => {
   it("uses the next full hour once the usual hour has passed", () => {
     const now = new TZDate(2026, 9, 27, 14, 10, ZONE);
     expect(pickDefaultStartTime(today, now, DEFAULT_HOUR)).toBe("15:00");
+  });
+});
+
+describe("parseWallClock", () => {
+  it("reads a studio date and time as a moment", () => {
+    const moment = parseWallClock({ date: "2026-10-29", time: "10:00" }, ZONE);
+    expect(moment.getTime()).toBe(Date.parse("2026-10-29T15:00:00Z"));
   });
 });

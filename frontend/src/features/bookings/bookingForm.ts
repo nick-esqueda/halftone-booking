@@ -3,7 +3,11 @@
  * These checks only give fast feedback; the API re-checks every rule.
  */
 import type { Booking, BookingCreateRequest } from "../../api/types";
-import { buildWallClockTime, splitWallClockTime } from "../studio/studioTime";
+import {
+  buildWallClockTime,
+  parseWallClock,
+  splitWallClockTime,
+} from "../studio/studioTime";
 
 export interface BookingFormValues {
   bookerName: string;
@@ -106,4 +110,17 @@ export function toggleEquipment(
   return isSelected
     ? equipmentIds.filter((id) => id !== equipmentId)
     : [...equipmentIds, equipmentId];
+}
+
+/** The chosen range as ISO instants, for showing it in another timezone. */
+export function getRangeInstants(
+  values: BookingFormValues,
+  timezone: string,
+): { startsAt: string; endsAt: string } {
+  const start = { date: values.startDate, time: values.startTime };
+  const end = { date: values.endDate, time: values.endTime };
+  return {
+    startsAt: parseWallClock(start, timezone).toISOString(),
+    endsAt: parseWallClock(end, timezone).toISOString(),
+  };
 }

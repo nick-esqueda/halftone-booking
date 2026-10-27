@@ -4,6 +4,7 @@ import type { MouseEvent } from "react";
 import type { BusySlot, EquipmentAvailability } from "../../api/types";
 import { getCategoryStyle, HOUR_ROW_HEIGHT_PX } from "../../config/constants";
 import { formatTime } from "../studio/studioTime";
+import { describeInViewerTime, getViewerTimezone } from "../studio/viewerTime";
 import {
   buildHourLabels,
   computeBlockPosition,
@@ -159,10 +160,17 @@ function BookingBlock({
   const details = [slot.booker_name, timeRange, slot.purpose]
     .filter(Boolean)
     .join(" · ");
+  const viewerTime = describeInViewerTime(
+    slot.starts_at,
+    slot.ends_at,
+    timezone,
+    getViewerTimezone(),
+  );
+  const hoverText = viewerTime ? `${details}\n${viewerTime}` : details;
   return (
     <button
       type="button"
-      title={details}
+      title={hoverText}
       aria-label={details}
       onClick={(event) => {
         event.stopPropagation();
