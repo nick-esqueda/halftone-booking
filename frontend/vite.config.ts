@@ -17,6 +17,8 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // An absolute API URL, so requests in tests have a full URL to match.
+    env: { VITE_API_URL: "http://api.test" },
     include: ["src/**/*.test.{ts,tsx}"],
   },
 });

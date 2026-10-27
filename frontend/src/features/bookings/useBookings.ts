@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { apiClient, unwrapResponse } from "../../api/client";
+import { ApiError, apiClient, unwrapResponse } from "../../api/client";
 import { queryKeys } from "../../api/queryKeys";
 import type {
   Booking,
@@ -48,6 +48,12 @@ export function useBookingHistory(bookingId: number) {
   });
 }
 
+const STALE_VERSION_CODE = "stale_version";
+
+function isStaleVersionError(error: Error): boolean {
+  return error instanceof ApiError && error.code === STALE_VERSION_CODE;
+}
+
 /** After any booking change, refetch everything that shows bookings. */
 function useRefreshBookingQueries() {
   const queryClient = useQueryClient();
@@ -55,6 +61,19 @@ function useRefreshBookingQueries() {
     void queryClient.invalidateQueries({ queryKey: queryKeys.availabilityAll });
     void queryClient.invalidateQueries({ queryKey: queryKeys.bookingsAll });
     void queryClient.invalidateQueries({ queryKey: queryKeys.bookerNames });
+  };
+}
+
+/**
+ * When someone else changed the booking first, load their version so the
+ * dialog shows it and the next save uses the new version number.
+ */
+function useRefreshWhenStale() {
+  const refreshBookingQueries = useRefreshBookingQueries();
+  return (error: Error) => {
+    if (isStaleVersionError(error)) {
+      refreshBookingQueries();
+    }
   };
 }
 
@@ -69,6 +88,7 @@ export function useCreateBooking() {
 
 export function useUpdateBooking(bookingId: number) {
   const refreshBookingQueries = useRefreshBookingQueries();
+  const refreshWhenStale = useRefreshWhenStale();
   return useMutation({
     mutationFn: (request: BookingUpdateRequest) =>
       unwrapResponse(
@@ -78,6 +98,7 @@ export function useUpdateBooking(bookingId: number) {
         }),
       ),
     onSuccess: refreshBookingQueries,
+    onError: refreshWhenStale,
   });
 }
 
@@ -88,6 +109,7 @@ interface CancelBookingInput {
 
 export function useCancelBooking() {
   const refreshBookingQueries = useRefreshBookingQueries();
+  const refreshWhenStale = useRefreshWhenStale();
   return useMutation({
     mutationFn: ({ booking, actorName }: CancelBookingInput) =>
       unwrapResponse(
@@ -100,5 +122,6 @@ export function useCancelBooking() {
         }),
       ),
     onSuccess: refreshBookingQueries,
+    onError: refreshWhenStale,
   });
 }

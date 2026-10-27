@@ -230,6 +230,13 @@ function TimeSelect({ label, value, options, onChange }: TimeSelectProps) {
   );
 }
 
+// Extra guidance shown under an API error, by error code.
+const SAVE_ERROR_HINTS: Partial<Record<string, string>> = {
+  conflict: "Nothing was saved. Untick the taken item or pick another time.",
+  stale_version:
+    "Nothing was saved. The latest version is shown now; make your change again.",
+};
+
 function FormErrors({
   problems,
   saveError,
@@ -244,15 +251,13 @@ function FormErrors({
     return null;
   }
 
-  const isConflict =
-    saveError instanceof ApiError && saveError.code === "conflict";
+  const hint =
+    saveError instanceof ApiError
+      ? SAVE_ERROR_HINTS[saveError.code]
+      : undefined;
   return (
     <ErrorBanner title={saveError.message}>
-      {isConflict && (
-        <p className="mt-1 text-ink-muted">
-          Nothing was saved. Untick the taken item or pick another time.
-        </p>
-      )}
+      {hint && <p className="mt-1 text-ink-muted">{hint}</p>}
     </ErrorBanner>
   );
 }

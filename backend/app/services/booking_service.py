@@ -138,7 +138,7 @@ class BookingService:
             raise NotFoundError(f"Booking {booking_id} doesn't exist.")
         if booking.version != expected_version:
             raise StaleVersionError(
-                "This booking was changed by someone else. Reload and try again."
+                "Someone else changed this booking since you opened it."
             )
         if booking.is_cancelled:
             raise InvalidBookingError(
