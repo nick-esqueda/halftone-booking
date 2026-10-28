@@ -26,6 +26,8 @@ services:
       BOOKING_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-booking}
       BOOKING_STUDIO_TIMEZONE: ${BOOKING_STUDIO_TIMEZONE:-America/Chicago}
       BOOKING_TIME_STEP_MINUTES: ${BOOKING_TIME_STEP_MINUTES:-15}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      BOOKING_LLM_MODEL: ${BOOKING_LLM_MODEL:-claude-sonnet-5-5}
     ports:
       - "8000:8000"
     healthcheck:

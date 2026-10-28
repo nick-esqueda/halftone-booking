@@ -3,6 +3,7 @@
 No network: these check the request and response shapes only.
 """
 
+import pytest
 from anthropic.types.beta import (
     BetaMessage,
     BetaTextBlock,
@@ -11,6 +12,7 @@ from anthropic.types.beta import (
 )
 
 from app.assistant.anthropic_provider import (
+    AnthropicProvider,
     build_message_param,
     build_model_turn,
     build_tool_param,
@@ -23,7 +25,9 @@ from app.assistant.llm import (
     ToolResultsTurn,
     UserTurn,
 )
+from app.assistant.providers import build_llm_provider
 from app.assistant.tools import TOOL_SPECS
+from app.config import Settings
 
 TOOL_USE = BetaToolUseBlock(
     type="tool_use", id="toolu_1", name="list_equipment", input={}
@@ -116,3 +120,19 @@ def check_strict_schema(schema: dict[str, object]) -> None:
         items = schema["items"]
         assert isinstance(items, dict)
         check_strict_schema(items)
+
+
+def test_no_key_or_a_blank_key_switches_the_assistant_off() -> None:
+    assert build_llm_provider(Settings(ANTHROPIC_API_KEY=None)) is None
+    assert build_llm_provider(Settings(ANTHROPIC_API_KEY="  ")) is None
+
+
+def test_a_key_builds_the_anthropic_provider() -> None:
+    provider = build_llm_provider(Settings(ANTHROPIC_API_KEY="sk-test"))
+    assert isinstance(provider, AnthropicProvider)
+
+
+def test_an_unknown_provider_is_an_error() -> None:
+    settings = Settings(ANTHROPIC_API_KEY="sk-test", llm_provider="nope")
+    with pytest.raises(ValueError, match="nope"):
+        build_llm_provider(settings)

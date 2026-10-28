@@ -35,6 +35,9 @@ CI runs all of the above on every pull request, checks that the generated API ty
 - **No double-booking.** `booking_items` has an exclusion constraint: two active items for the same equipment can't overlap. The API checks first so it can name the clash, and turns a lost race into the same 409.
 - **Time lives on items.** A booking is who and why; its items hold the time range and cancelled flag. The booking's overall time and status are worked out from its items (in `app/services/booking_times.py`).
 - **Business rules live in the API.** The UI only gives quick hints; the API checks everything again.
+- **Booking assistant.** People can ask in plain English ("Camera B Thursday after lunch"). `POST /api/assistant/draft` runs a short loop with Claude: the model can only read (list equipment, check availability, find free times) and finishes by proposing a draft or asking a question. Every draft is checked with the booking rules, and nothing is saved until the person presses Book in the form. Vague times get options, never guesses. The code is in `backend/app/assistant/`; house phrases like "after lunch" are in `prompt.py`.
+- **Assistant limits.** Each request is capped at a few model calls and seconds, and each client at a few requests a minute (settings in `config.py`). Without `ANTHROPIC_API_KEY` the assistant is switched off and the UI hides it.
+- **Assistant evals.** `backend/evals/` holds cases graded against the real model; see its README. They cost money, so CI runs them only by hand, on PRs labelled `run-evals`, and after merges that touch the assistant.
 - **API types.** After changing the API, run `make openapi` to regenerate `frontend/src/api/schema.d.ts`.
 
 ## Configuration

@@ -13,15 +13,17 @@ from app.assistant.anthropic_provider import AnthropicProvider
 from app.assistant.llm import LLMProvider
 from app.config import Settings
 
-# A factory returns None when the provider isn't configured (no API key).
+# A factory returns None when the provider isn't configured (no API key, or
+# an empty one, as Docker Compose passes when the variable isn't set).
 ProviderFactory = Callable[[Settings], LLMProvider | None]
 
 
 def build_anthropic_provider(settings: Settings) -> LLMProvider | None:
-    if settings.anthropic_api_key is None:
+    api_key = settings.anthropic_api_key
+    if api_key is None or not api_key.get_secret_value().strip():
         return None
     return AnthropicProvider(
-        api_key=settings.anthropic_api_key.get_secret_value(),
+        api_key=api_key.get_secret_value(),
         model=settings.llm_model,
         effort=settings.llm_effort,
         max_output_tokens=settings.llm_max_output_tokens,

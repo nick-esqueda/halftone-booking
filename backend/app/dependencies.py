@@ -6,7 +6,6 @@ the assistant's model; everything else comes from here.
 
 from functools import lru_cache
 from typing import Annotated
-from zoneinfo import ZoneInfo
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
@@ -15,11 +14,10 @@ from app.assistant.assistant_service import AssistantService
 from app.assistant.llm import LLMProvider
 from app.assistant.providers import build_llm_provider
 from app.assistant.rate_limit import SlidingWindowRateLimiter
-from app.assistant.tools import ToolContext
+from app.assistant.tools import build_tool_context
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.errors import AssistantUnavailableError
-from app.repositories.equipment_repository import EquipmentRepository
 from app.services.availability_service import AvailabilityService
 from app.services.booking_service import BookingService
 from app.studio_time import Clock, SystemClock
@@ -84,20 +82,10 @@ def get_assistant_service(
     settings: SettingsDependency,
     clock: ClockDependency,
     provider: LLMProviderDependency,
-    bookings: BookingServiceDependency,
-    availability: AvailabilityServiceDependency,
 ) -> AssistantService:
     if provider is None:
         raise AssistantUnavailableError(ASSISTANT_OFF_MESSAGE)
-    context = ToolContext(
-        availability=availability,
-        bookings=bookings,
-        equipment=EquipmentRepository(session),
-        settings=settings,
-        studio_zone=ZoneInfo(settings.studio_timezone),
-        now=clock.now(),
-        booker_name="",
-    )
+    context = build_tool_context(session, settings, clock)
     return AssistantService(provider, context, settings)
 
 

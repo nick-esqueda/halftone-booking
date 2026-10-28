@@ -15,6 +15,8 @@ from datetime import date, datetime, time, timedelta
 from typing import Any, Protocol
 from zoneinfo import ZoneInfo
 
+from sqlalchemy.orm import Session
+
 from app.assistant.free_time import find_free_spans, round_up_to_step
 from app.assistant.llm import ToolSpec
 from app.config import Settings
@@ -30,7 +32,7 @@ from app.schemas import (
 from app.services.availability_service import AvailabilityService
 from app.services.booking_service import BookingService
 from app.services.booking_times import TimeSpan
-from app.studio_time import convert_to_utc, format_clock_time
+from app.studio_time import Clock, convert_to_utc, format_clock_time
 
 # Times are exchanged with the model as studio wall-clock text.
 MODEL_TIME_FORMAT = "%Y-%m-%dT%H:%M"
@@ -54,6 +56,21 @@ class ToolContext:
     studio_zone: ZoneInfo
     now: datetime
     booker_name: str
+
+
+def build_tool_context(
+    session: Session, settings: Settings, clock: Clock
+) -> ToolContext:
+    """The context for one request; the person's name is added per request."""
+    return ToolContext(
+        availability=AvailabilityService(session, settings),
+        bookings=BookingService(session, settings, clock),
+        equipment=EquipmentRepository(session),
+        settings=settings,
+        studio_zone=ZoneInfo(settings.studio_timezone),
+        now=clock.now(),
+        booker_name="",
+    )
 
 
 @dataclass(frozen=True)
