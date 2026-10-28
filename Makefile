@@ -14,6 +14,13 @@ DB_PORT ?= 5432
 TEST_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT)/booking_test
 LOCAL_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT)/booking
 
+# Pass these .env settings on to the API when it runs on this machine
+# (`make api`, `make evals`), as Docker Compose does. Only settings that are
+# set get passed, so an unset one keeps the API's default instead of "".
+API_SETTINGS_FROM_ENV_FILE := ANTHROPIC_API_KEY BOOKING_STUDIO_TIMEZONE BOOKING_TIME_STEP_MINUTES BOOKING_LLM_MODEL BOOKING_LLM_EFFORT BOOKING_LOG_LEVELS
+DEFINED_API_SETTINGS := $(foreach name,$(API_SETTINGS_FROM_ENV_FILE),$(if $(filter-out undefined,$(origin $(name))),$(name)))
+export $(DEFINED_API_SETTINGS)
+
 # Local logging matches Docker: DEBUG, to the console and to ./logs/api.log.
 BOOKING_LOG_LEVEL ?= DEBUG
 BOOKING_LOG_SINKS ?= console,file
