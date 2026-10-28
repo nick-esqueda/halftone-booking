@@ -1,4 +1,4 @@
-# halftone-booking
+# Halftone Booking - Impruve Build Challenge
 
 Equipment booking for the Halftone studio: see who has which camera, light or room, book it, and never double-book. Members can book with a form or just ask the AI assistant in plain English ("Camera B Thursday after lunch").
 
