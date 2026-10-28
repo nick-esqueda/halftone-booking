@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Color tokens. Components use these names (bg-surface, text-ink, ...)
+ * instead of raw colors, so light and dark mode are defined only here.
+ * Values are RGB channels so Tailwind opacity modifiers keep working.
+ */
+:root {
+  --color-canvas: 249 250 251;
+  --color-surface: 255 255 255;
+  --color-muted: 243 244 246;
+  --color-line: 229 231 235;
+  --color-line-strong: 209 213 219;
+  --color-ink: 17 24 39;
+  --color-ink-muted: 107 114 128;
+  --color-ink-faint: 156 163 175;
+  --color-accent: 47 111 189;
+  --color-accent-strong: 36 90 156;
+  --color-accent-soft: 230 239 250;
+  --color-danger: 194 50 50;
+  --color-danger-soft: 253 238 238;
+  --color-success: 22 140 75;
+  color-scheme: light;
+}
+
+.dark {
+  --color-canvas: 15 17 21;
+  --color-surface: 24 27 33;
+  --color-muted: 34 38 46;
+  --color-line: 45 50 59;
+  --color-line-strong: 66 72 84;
+  --color-ink: 236 238 241;
+  --color-ink-muted: 156 163 175;
+  --color-ink-faint: 107 114 128;
+  --color-accent: 96 156 230;
+  --color-accent-strong: 130 178 238;
+  --color-accent-soft: 30 45 68;
+  --color-danger: 240 113 113;
+  --color-danger-soft: 58 30 32;
+  --color-success: 74 196 125;
+  color-scheme: dark;
+}

@@ -1,0 +1,160 @@
+/**
+ * Display helpers for studio time. The API owns every time rule; these only
+ * format times and build the plain wall-clock strings the API accepts
+ * ("2026-10-29T13:00" means 13:00 studio time).
+ */
+import { TZDate } from "@date-fns/tz";
+import {
+  addDays,
+  addHours,
+  format,
+  isSameDay,
+  startOfDay,
+  startOfWeek,
+} from "date-fns";
+
+import { padTwoDigits } from "./clockTime";
+
+const MONDAY = 1;
+
+export const DATE_INPUT_FORMAT = "yyyy-MM-dd";
+export const TIME_INPUT_FORMAT = "HH:mm";
+const TIME_FORMAT = "h:mm a";
+const DAY_FORMAT = "EEE d MMM";
+const WEEKDAY_FORMAT = "EEE";
+const DAY_OF_MONTH_FORMAT = "d";
+const LONG_DAY_FORMAT = "EEEE, MMMM d";
+
+export function toStudioDate(value: string | Date, timezone: string): TZDate {
+  const instant = typeof value === "string" ? new Date(value) : value;
+  return new TZDate(instant, timezone);
+}
+
+export function formatTime(value: string, timezone: string): string {
+  return format(toStudioDate(value, timezone), TIME_FORMAT);
+}
+
+export function formatDay(value: string | Date, timezone: string): string {
+  return format(toStudioDate(value, timezone), DAY_FORMAT);
+}
+
+/** "Wed" */
+export function formatWeekday(value: Date): string {
+  return format(value, WEEKDAY_FORMAT);
+}
+
+/** "28" */
+export function formatDayOfMonth(value: Date): string {
+  return format(value, DAY_OF_MONTH_FORMAT);
+}
+
+export function formatLongDay(value: Date): string {
+  return format(value, LONG_DAY_FORMAT);
+}
+
+/** "Thu 29 Oct, 1:00 PM – 3:00 PM", or both days when the range spans days. */
+export function formatTimeRange(
+  startsAt: string,
+  endsAt: string,
+  timezone: string,
+): string {
+  const start = toStudioDate(startsAt, timezone);
+  const end = toStudioDate(endsAt, timezone);
+  const startText = `${format(start, DAY_FORMAT)}, ${format(start, TIME_FORMAT)}`;
+  const endText = isSameDay(start, end)
+    ? format(end, TIME_FORMAT)
+    : `${format(end, DAY_FORMAT)}, ${format(end, TIME_FORMAT)}`;
+  return `${startText} – ${endText}`;
+}
+
+export function getWeekStart(value: Date, timezone: string): TZDate {
+  const studioDate = new TZDate(value, timezone);
+  return startOfWeek(studioDate, { weekStartsOn: MONDAY });
+}
+
+export function buildWeekDays(weekStart: TZDate, dayCount: number): TZDate[] {
+  return Array.from({ length: dayCount }, (_, index) =>
+    addDays(weekStart, index),
+  );
+}
+
+/** Wall-clock string for the API, e.g. "2026-10-29T13:00". */
+export function buildWallClockTime(date: string, time: string): string {
+  return `${date}T${time}`;
+}
+
+export interface WallClockParts {
+  date: string;
+  time: string;
+}
+
+export function splitWallClockTime(
+  value: string,
+  timezone: string,
+): WallClockParts {
+  const studioDate = toStudioDate(value, timezone);
+  return {
+    date: format(studioDate, DATE_INPUT_FORMAT),
+    time: format(studioDate, TIME_INPUT_FORMAT),
+  };
+}
+
+/** The moment a studio date and time ("2026-10-29", "13:00") refers to. */
+export function parseWallClock(
+  parts: WallClockParts,
+  timezone: string,
+): TZDate {
+  const [year, month, day] = parts.date.split("-").map(Number);
+  const [hour, minute] = parts.time.split(":").map(Number);
+  return new TZDate(year, month - 1, day, hour, minute, timezone);
+}
+
+/** The wall-clock date and time `hours` after the given studio date and time. */
+export function addHoursToWallClock(
+  parts: WallClockParts,
+  hours: number,
+  timezone: string,
+): WallClockParts {
+  const end = addHours(parseWallClock(parts, timezone), hours);
+  return {
+    date: format(end, DATE_INPUT_FORMAT),
+    time: format(end, TIME_INPUT_FORMAT),
+  };
+}
+
+/** Wall-clock strings for the whole of `day`, for availability queries. */
+export function buildDayRange(day: TZDate): {
+  startsAt: string;
+  endsAt: string;
+} {
+  const dayStart = startOfDay(day);
+  const nextDayStart = addDays(dayStart, 1);
+  return {
+    startsAt: buildWallClockTime(format(dayStart, DATE_INPUT_FORMAT), "00:00"),
+    endsAt: buildWallClockTime(
+      format(nextDayStart, DATE_INPUT_FORMAT),
+      "00:00",
+    ),
+  };
+}
+
+export function formatDateInput(day: Date): string {
+  return format(day, DATE_INPUT_FORMAT);
+}
+
+const LAST_START_HOUR = 23;
+
+/**
+ * The start time a new booking form opens with: the usual start hour, or the
+ * next full hour when that has already passed today.
+ */
+export function pickDefaultStartTime(
+  day: Date,
+  now: Date,
+  defaultHour: number,
+): string {
+  const nextHour = Math.min(now.getHours() + 1, LAST_START_HOUR);
+  const hasDefaultPassed = isSameDay(day, now) && nextHour > defaultHour;
+  const startHour = hasDefaultPassed ? nextHour : defaultHour;
+  return `${padTwoDigits(startHour)}:00`;
+}
