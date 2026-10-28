@@ -270,6 +270,31 @@ describe("AssistantPanel", () => {
     ]);
   });
 
+  it("briefly highlights a reply that opens no booking form", async () => {
+    installApi(() => respond(200, MESSAGE_REPLY));
+    renderWithProviders(<SchedulePage />);
+
+    await ask("Camera A Thursday");
+
+    const reply = await screen.findByText(MESSAGE_REPLY.message);
+    expect(reply.closest("li")).toHaveClass(
+      "motion-safe:animate-reply-highlight",
+    );
+  });
+
+  it("doesn't highlight a reply that opens the booking form", async () => {
+    installApi(() => respond(200, DRAFT_REPLY));
+    renderWithProviders(<SchedulePage />);
+
+    await ask("Camera A Thursday 1 to 3 for an interview");
+    await screen.findByRole("dialog", { name: "New booking" });
+
+    const reply = screen.getByText(DRAFT_REPLY.message);
+    expect(reply.closest("li")).not.toHaveClass(
+      "motion-safe:animate-reply-highlight",
+    );
+  });
+
   it("starts over with an empty conversation", async () => {
     const api = installApi(() => respond(200, QUESTION_REPLY));
     renderWithProviders(<SchedulePage />);

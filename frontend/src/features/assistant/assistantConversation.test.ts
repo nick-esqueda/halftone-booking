@@ -15,8 +15,17 @@ describe("addExchange", () => {
       addExchange([], "Camera A Friday", "Which time?", " Sam K "),
     ).toEqual([
       { role: "user", text: "Camera A Friday", bookerName: "Sam K" },
-      { role: "assistant", text: "Which time?" },
+      { role: "assistant", text: "Which time?", highlighted: false },
     ]);
+  });
+
+  it("marks an answer to highlight when asked", () => {
+    const [, answer] = addExchange([], "Hi", "What day?", "Sam K", true);
+    expect(answer).toEqual({
+      role: "assistant",
+      text: "What day?",
+      highlighted: true,
+    });
   });
 
   it("marks a change of name since the last question", () => {

@@ -17,13 +17,14 @@ export const MAX_HISTORY_ENTRIES = 10;
 
 /**
  * One line of the conversation. Questions keep the "Booking as" name they
- * were sent under. "confirmed" lines record what the person saved or
+ * were sent under. Answers that opened no booking form are `highlighted`, so
+ * the person notices them. "confirmed" lines record what the person saved or
  * cancelled in the form, and "switched" lines mark a change of name; both are
  * shown, but not sent to the API.
  */
 export type ConversationEntry =
   | { role: "user"; text: string; bookerName: string }
-  | { role: "assistant"; text: string }
+  | { role: "assistant"; text: string; highlighted?: boolean }
   | { role: "confirmed"; text: string }
   | { role: "switched"; text: string };
 
@@ -43,11 +44,12 @@ export function addExchange(
   question: string,
   answer: string,
   bookerName: string,
+  highlighted = false,
 ): ConversationEntry[] {
   const name = bookerName.trim();
   const exchange: ConversationEntry[] = [
     { role: "user", text: question, bookerName: name },
-    { role: "assistant", text: answer },
+    { role: "assistant", text: answer, highlighted },
   ];
   const lastName = findLastBookerName(conversation);
   const switched = lastName !== null && !isSameName(lastName, name);

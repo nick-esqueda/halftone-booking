@@ -34,6 +34,16 @@ export default {
         sans: ["Inter", "system-ui", "sans-serif"],
       },
       colors: tokenColors,
+      // A new assistant reply fades in from the accent tint, so it's noticed.
+      keyframes: {
+        "reply-highlight": {
+          from: { backgroundColor: "rgb(var(--color-accent-soft))" },
+          to: { backgroundColor: "transparent" },
+        },
+      },
+      animation: {
+        "reply-highlight": "reply-highlight 2s ease-out",
+      },
     },
   },
   plugins: [],
