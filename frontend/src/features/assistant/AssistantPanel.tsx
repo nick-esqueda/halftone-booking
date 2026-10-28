@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
 
-import type { AssistantHistoryEntry, AssistantReply } from "../../api/types";
+import type { AssistantReply, Booking } from "../../api/types";
 import { Button } from "../../components/ui/Button";
 import { ErrorBanner } from "../../components/ui/ErrorBanner";
 import { TEXT_INPUT_CLASS_NAME } from "../../components/ui/styles";
@@ -9,6 +9,8 @@ import {
   addExchange,
   describeConfirmed,
   findReplyAction,
+  toHistory,
+  type ConversationEntry,
   type ReplyTarget,
 } from "./assistantConversation";
 import { useAskAssistant } from "./useAskAssistant";
@@ -18,11 +20,15 @@ const MAX_MESSAGE_LENGTH = 500;
 const PLACEHOLDER = 'e.g. "Camera A and a light Thursday after lunch"';
 
 interface AssistantPanelProps {
+  timezone: string;
   /**
    * Opens a draft or a suggested change in a booking form, for review.
-   * `onConfirmed` runs once the person saves or cancels it there.
+   * `onConfirmed` gets the booking once the person saves or cancels it there.
    */
-  onOpen: (target: ReplyTarget, onConfirmed: () => void) => void;
+  onOpen: (
+    target: ReplyTarget,
+    onConfirmed: (booking: Booking) => void,
+  ) => void;
 }
 
 /**
@@ -31,26 +37,26 @@ interface AssistantPanelProps {
  * question with times to pick, or a note. Nothing is saved or cancelled
  * until the person confirms in the booking form.
  */
-export function AssistantPanel({ onOpen }: AssistantPanelProps) {
+export function AssistantPanel({ timezone, onOpen }: AssistantPanelProps) {
   const { bookerName } = useBookerNameContext();
   const askAssistant = useAskAssistant();
   const [message, setMessage] = useState("");
-  const [history, setHistory] = useState<AssistantHistoryEntry[]>([]);
+  const [conversation, setConversation] = useState<ConversationEntry[]>([]);
   const [lastReply, setLastReply] = useState<AssistantReply | null>(null);
-  const [confirmedNote, setConfirmedNote] = useState<string | null>(null);
 
-  // Once confirmed, the suggestion is done: drop its button and say so.
+  // Once confirmed, the suggestion is done: drop its button and record what
+  // was saved in the conversation.
   const openTarget = (target: ReplyTarget) => {
-    onOpen(target, () => {
+    onOpen(target, (booking) => {
       setLastReply(null);
-      setConfirmedNote(describeConfirmed(target));
+      const text = describeConfirmed(target, booking, timezone);
+      setConversation((earlier) => [...earlier, { role: "confirmed", text }]);
     });
   };
 
   const showReply = (question: string, reply: AssistantReply) => {
-    setHistory((earlier) => addExchange(earlier, question, reply.message));
+    setConversation((earlier) => addExchange(earlier, question, reply.message));
     setLastReply(reply);
-    setConfirmedNote(null);
     setMessage("");
     const action = findReplyAction(reply);
     if (action) {
@@ -64,6 +70,7 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
     if (question === "" || askAssistant.isPending) {
       return;
     }
+    const history = toHistory(conversation);
     const request = { message: question, booker_name: bookerName, history };
     askAssistant.mutate(request, {
       onSuccess: (reply) => showReply(question, reply),
@@ -71,9 +78,8 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
   };
 
   const startOver = () => {
-    setHistory([]);
+    setConversation([]);
     setLastReply(null);
-    setConfirmedNote(null);
     askAssistant.reset();
   };
 
@@ -84,7 +90,7 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
     >
       <div className="flex min-h-8 items-center justify-between gap-2">
         <h2 className="text-sm font-semibold">Ask for a booking</h2>
-        {history.length > 0 && (
+        {conversation.length > 0 && (
           <Button variant="ghost" onClick={startOver}>
             Start over
           </Button>
@@ -110,13 +116,8 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
           {askAssistant.isPending ? "Thinking…" : "Ask"}
         </Button>
       </form>
-      {history.length > 0 && <Conversation history={history} />}
+      {conversation.length > 0 && <Conversation entries={conversation} />}
       {lastReply && <ReplyActions reply={lastReply} onOpen={openTarget} />}
-      {confirmedNote && (
-        <p role="status" className="text-sm text-ink-muted">
-          {confirmedNote}
-        </p>
-      )}
       {askAssistant.error && (
         <ErrorBanner title="The assistant couldn't answer.">
           <p className="text-ink-muted">{askAssistant.error.message}</p>
@@ -126,21 +127,35 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
   );
 }
 
-const SPEAKER_NAMES: Record<AssistantHistoryEntry["role"], string> = {
+// Who each line is from. Confirmed lines come from the app, not a speaker.
+const SPEAKER_NAMES: Record<ConversationEntry["role"], string | null> = {
   user: "You",
   assistant: "Assistant",
+  confirmed: null,
 };
 
-function Conversation({ history }: { history: AssistantHistoryEntry[] }) {
+function Conversation({ entries }: { entries: ConversationEntry[] }) {
   return (
     <ol aria-label="Conversation" className="space-y-1 text-sm">
-      {history.map((entry, index) => (
+      {entries.map((entry, index) => (
         <li key={index}>
-          <span className="font-semibold">{SPEAKER_NAMES[entry.role]}:</span>{" "}
-          <span className="text-ink-muted">{entry.text}</span>
+          <ConversationLine entry={entry} />
         </li>
       ))}
     </ol>
+  );
+}
+
+function ConversationLine({ entry }: { entry: ConversationEntry }) {
+  const speaker = SPEAKER_NAMES[entry.role];
+  if (speaker === null) {
+    return <span className="font-medium text-success">✓ {entry.text}</span>;
+  }
+  return (
+    <>
+      <span className="font-semibold">{speaker}:</span>{" "}
+      <span className="text-ink-muted">{entry.text}</span>
+    </>
   );
 }
 

@@ -34,6 +34,17 @@ const DRAFT_REPLY: AssistantReply = {
   },
   options: [],
 };
+// What the server saved from DRAFT_REPLY, after the purpose was edited.
+const SAVED_BOOKING = {
+  id: 1,
+  booker_name: "Sam K",
+  purpose: "Interview with Ana",
+  starts_at: DRAFT_REPLY.draft!.starts_at,
+  ends_at: DRAFT_REPLY.draft!.ends_at,
+  is_cancelled: false,
+  version: 1,
+  items: [{ equipment_id: CAMERA_A.id, equipment_name: "Camera A" }],
+};
 const QUESTION_REPLY: AssistantReply = {
   kind: "question",
   message: "Camera A is free at these times on Friday. Which one?",
@@ -74,7 +85,7 @@ function installApi(assistantReply: () => Response, assistantEnabled = true) {
     "GET /api/availability": () => respond(200, AVAILABILITY),
     "GET /api/booker-names": () => respond(200, []),
     "POST /api/assistant/draft": assistantReply,
-    "POST /api/bookings": () => respond(201, { id: 1 }),
+    "POST /api/bookings": () => respond(201, SAVED_BOOKING),
   });
 }
 
@@ -121,7 +132,33 @@ describe("AssistantPanel", () => {
     ]);
   });
 
-  it("drops the review button once the draft is booked", async () => {
+  it("records what was booked in the conversation, and drops the button", async () => {
+    const api = installApi(() => respond(200, DRAFT_REPLY));
+    renderWithProviders(<SchedulePage />);
+
+    await ask("Camera A Thursday 1 to 3 for an interview");
+    const dialog = await screen.findByRole("dialog", { name: "New booking" });
+    await userEvent.type(within(dialog).getByLabelText("Booked by"), "Sam K");
+    const purpose = within(dialog).getByLabelText("Purpose");
+    await userEvent.clear(purpose);
+    await userEvent.type(purpose, "Interview with Ana");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Book 1 item" }),
+    );
+
+    const conversation = screen.getByRole("list", { name: "Conversation" });
+    expect(
+      await within(conversation).findByText(
+        "✓ Booked: Camera A, Thu 29 Oct, 1:00 PM – 3:00 PM (Interview with Ana)",
+      ),
+    ).toBeInTheDocument();
+    expect(api.requests("POST /api/bookings")).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Review the draft" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the booked line after a follow-up, without sending it", async () => {
     const api = installApi(() => respond(200, DRAFT_REPLY));
     renderWithProviders(<SchedulePage />);
 
@@ -131,12 +168,21 @@ describe("AssistantPanel", () => {
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Book 1 item" }),
     );
+    await screen.findByText(/^✓ Booked:/);
+    api.setRoute("POST /api/assistant/draft", () =>
+      respond(200, MESSAGE_REPLY),
+    );
+    await ask("And a light?");
+    await screen.findByText(MESSAGE_REPLY.message);
 
-    expect(await screen.findByRole("status")).toHaveTextContent("Booked.");
-    expect(api.requests("POST /api/bookings")).toHaveLength(1);
-    expect(
-      screen.queryByRole("button", { name: "Review the draft" }),
-    ).not.toBeInTheDocument();
+    expect(screen.getByText(/^✓ Booked:/)).toBeInTheDocument();
+    const [, followUp] = api.requests("POST /api/assistant/draft");
+    expect(followUp).toMatchObject({
+      history: [
+        { role: "user", text: "Camera A Thursday 1 to 3 for an interview" },
+        { role: "assistant", text: DRAFT_REPLY.message },
+      ],
+    });
   });
 
   it("offers suggested times and opens the one picked", async () => {

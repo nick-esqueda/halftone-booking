@@ -5,6 +5,8 @@ import {
   buildDefaultsFromDraft,
   findReplyAction,
   MAX_HISTORY_ENTRIES,
+  toHistory,
+  type ConversationEntry,
 } from "./assistantConversation";
 
 describe("addExchange", () => {
@@ -14,16 +16,35 @@ describe("addExchange", () => {
       { role: "assistant", text: "Which time?" },
     ]);
   });
+});
 
-  it("keeps only the most recent entries", () => {
-    let history = addExchange([], "first", "reply");
+describe("toHistory", () => {
+  it("sends only the most recent messages", () => {
+    let conversation = addExchange([], "first", "reply");
     for (let round = 0; round < MAX_HISTORY_ENTRIES; round += 1) {
-      history = addExchange(history, `question ${round}`, `answer ${round}`);
+      conversation = addExchange(
+        conversation,
+        `question ${round}`,
+        `answer ${round}`,
+      );
     }
 
+    const history = toHistory(conversation);
     expect(history).toHaveLength(MAX_HISTORY_ENTRIES);
     expect(history.at(-1)).toEqual({ role: "assistant", text: "answer 9" });
     expect(history).not.toContainEqual({ role: "user", text: "first" });
+  });
+
+  it("leaves out the confirmed lines", () => {
+    const conversation: ConversationEntry[] = [
+      ...addExchange([], "Camera A Friday", "Here it is."),
+      { role: "confirmed", text: "Booked: Camera A" },
+    ];
+
+    expect(toHistory(conversation)).toEqual([
+      { role: "user", text: "Camera A Friday" },
+      { role: "assistant", text: "Here it is." },
+    ]);
   });
 });
 

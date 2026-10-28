@@ -3,7 +3,7 @@ import { useBookerNameContext } from "../identity/bookerNameStore";
 import { useCancelBooking } from "./useBookings";
 
 /** Cancels a booking in the name of whoever is using the app. */
-export function useCancelAsViewer(onCancelled?: () => void) {
+export function useCancelAsViewer(onCancelled?: (cancelled: Booking) => void) {
   const { bookerName } = useBookerNameContext();
   const cancelBooking = useCancelBooking();
 

@@ -1,4 +1,4 @@
-import type { DraftBooking } from "../../api/types";
+import type { Booking, DraftBooking } from "../../api/types";
 import { Dialog } from "../../components/ui/Dialog";
 import { LoadError } from "../../components/ui/LoadError";
 import {
@@ -19,8 +19,10 @@ import { BookingHistory } from "./BookingHistory";
 import { CancelBookingSection } from "./CancelBookingSection";
 import { useBooking, useCreateBooking, useUpdateBooking } from "./useBookings";
 
-/** `onCompleted` runs after the booking is saved or cancelled from the form. */
-export type BookingDialogRequest = { onCompleted?: () => void } & (
+/** `onCompleted` gets the booking once it's saved or cancelled from the form. */
+export type BookingDialogRequest = {
+  onCompleted?: (booking: Booking) => void;
+} & (
   | { kind: "create"; defaults: NewBookingDefaults }
   | { kind: "edit"; bookingId: number; suggestion?: AssistantSuggestion }
 );
@@ -35,8 +37,8 @@ export function BookingDialog({ request, onClose }: BookingDialogProps) {
   if (request === null) {
     return null;
   }
-  const onDone = () => {
-    request.onCompleted?.();
+  const onDone = (booking: Booking) => {
+    request.onCompleted?.(booking);
     onClose();
   };
   if (request.kind === "create") {
@@ -60,8 +62,8 @@ export function BookingDialog({ request, onClose }: BookingDialogProps) {
 
 interface CreateBookingDialogProps {
   defaults: NewBookingDefaults;
-  /** Runs once the booking is saved, then closes the dialog. */
-  onDone: () => void;
+  /** Runs with the saved booking, then closes the dialog. */
+  onDone: (booking: Booking) => void;
   onClose: () => void;
 }
 
@@ -98,8 +100,8 @@ function CreateBookingDialog({
 interface EditBookingDialogProps {
   bookingId: number;
   suggestion?: AssistantSuggestion;
-  /** Runs once the booking is saved or cancelled, then closes the dialog. */
-  onDone: () => void;
+  /** Runs with the saved or cancelled booking, then closes the dialog. */
+  onDone: (booking: Booking) => void;
   onClose: () => void;
 }
 

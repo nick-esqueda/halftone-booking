@@ -6,7 +6,7 @@ import { useCancelAsViewer } from "./useCancelAsViewer";
 
 interface CancelBookingSectionProps {
   booking: Booking;
-  onCancelled?: () => void;
+  onCancelled?: (cancelled: Booking) => void;
   /** Open already asking "Cancel this booking?", e.g. when the assistant suggested it. */
   startConfirming?: boolean;
 }

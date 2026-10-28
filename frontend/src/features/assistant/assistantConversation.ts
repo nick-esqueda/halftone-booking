@@ -1,30 +1,48 @@
 /**
- * Helpers for the assistant conversation: the history sent with each request,
- * what each reply lets the person open, and turning a draft into the booking
- * form's starting values.
+ * Helpers for the assistant conversation: what it shows, the history sent
+ * with each request, what each reply lets the person open, and turning a
+ * draft into the booking form's starting values.
  */
 import type {
   AssistantHistoryEntry,
   AssistantReply,
+  Booking,
   DraftBooking,
 } from "../../api/types";
 import type { NewBookingDefaults } from "../bookings/bookingFormValues";
-import { splitWallClockTime } from "../studio/studioTime";
+import { formatTimeRange, splitWallClockTime } from "../studio/studioTime";
 
 // The API accepts at most this many earlier messages.
 export const MAX_HISTORY_ENTRIES = 10;
 
-/** The history with one more exchange, keeping only the most recent entries. */
+/**
+ * One line of the conversation. "confirmed" lines record what the person
+ * saved or cancelled in the form; they're shown, but not sent to the API.
+ */
+export type ConversationEntry =
+  AssistantHistoryEntry | { role: "confirmed"; text: string };
+
+/** The conversation with one more question and answer. */
 export function addExchange(
-  history: AssistantHistoryEntry[],
+  conversation: ConversationEntry[],
   question: string,
   answer: string,
-): AssistantHistoryEntry[] {
-  const exchange: AssistantHistoryEntry[] = [
+): ConversationEntry[] {
+  return [
+    ...conversation,
     { role: "user", text: question },
     { role: "assistant", text: answer },
   ];
-  return [...history, ...exchange].slice(-MAX_HISTORY_ENTRIES);
+}
+
+/** The most recent messages, as the API takes them. */
+export function toHistory(
+  conversation: ConversationEntry[],
+): AssistantHistoryEntry[] {
+  const messages = conversation.filter(
+    (entry): entry is AssistantHistoryEntry => entry.role !== "confirmed",
+  );
+  return messages.slice(-MAX_HISTORY_ENTRIES);
 }
 
 /** Starting values for the booking form, filled in from a draft. */
@@ -109,15 +127,27 @@ export function findReplyAction(reply: AssistantReply): ReplyAction | null {
 
 type ConfirmedAction = "draft" | AssistantSuggestion["kind"];
 
-// What the panel says once the person confirms a suggestion in the form.
-const CONFIRMED_NOTES: Record<ConfirmedAction, string> = {
-  draft: "Booked.",
-  change: "Changes saved.",
-  cancel: "Booking cancelled.",
+// How the conversation records each kind of confirmed suggestion.
+const CONFIRMED_LABELS: Record<ConfirmedAction, string> = {
+  draft: "Booked",
+  change: "Changes saved",
+  cancel: "Cancelled",
 };
 
-/** The note shown after the person confirms what `target` opened. */
-export function describeConfirmed(target: ReplyTarget): string {
+/**
+ * The line recording what the person confirmed, from the booking as saved, so
+ * it shows any edits they made in the form. For example
+ * "Booked: Camera A, Thu 29 Oct, 1:00 PM – 3:00 PM (Interview)".
+ */
+export function describeConfirmed(
+  target: ReplyTarget,
+  booking: Booking,
+  timezone: string,
+): string {
   const action = target.kind === "draft" ? "draft" : target.suggestion.kind;
-  return CONFIRMED_NOTES[action];
+  const items = booking.items.map((item) => item.equipment_name).join(", ");
+  const when = formatTimeRange(booking.starts_at, booking.ends_at, timezone);
+  const purpose = booking.purpose.trim();
+  const purposeText = purpose ? ` (${purpose})` : "";
+  return `${CONFIRMED_LABELS[action]}: ${items}, ${when}${purposeText}`;
 }

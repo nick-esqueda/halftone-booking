@@ -2,6 +2,7 @@ import { TZDate } from "@date-fns/tz";
 import { addWeeks, startOfDay } from "date-fns";
 import { useState } from "react";
 
+import type { Booking } from "../api/types";
 import {
   CURRENT_TIME_REFRESH_MS,
   DAY_VIEW_END_HOUR,
@@ -114,7 +115,10 @@ function Schedule({
   };
 
   // Show the suggestion's day behind the form, so the person sees what's around it.
-  const openAssistantReply = (target: ReplyTarget, onCompleted: () => void) => {
+  const openAssistantReply = (
+    target: ReplyTarget,
+    onCompleted: (booking: Booking) => void,
+  ) => {
     const startsAt =
       target.kind === "draft" ? target.draft.starts_at : target.startsAt;
     const studioStart = toStudioDate(startsAt, timezone);
@@ -129,7 +133,9 @@ function Schedule({
 
   return (
     <div className="space-y-4">
-      {isAssistantEnabled && <AssistantPanel onOpen={openAssistantReply} />}
+      {isAssistantEnabled && (
+        <AssistantPanel timezone={timezone} onOpen={openAssistantReply} />
+      )}
       <DayTabs
         days={weekDays}
         selectedDay={selectedDay}

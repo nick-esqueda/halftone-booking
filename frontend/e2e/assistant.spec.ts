@@ -22,6 +22,8 @@ const ASSISTANT_URL = "**/api/assistant/draft";
 
 const TEST_DAY = addDays(TZDate.tz(STUDIO_TIMEZONE), DAYS_AHEAD);
 const STUDIO_DATE = format(TEST_DAY, "yyyy-MM-dd");
+// How the conversation writes the test day, e.g. "Thu 29 Oct".
+const DAY_TEXT = format(TEST_DAY, "EEE d MMM");
 
 /** An instant at `hour` o'clock studio time on the test day. */
 function atStudioHour(hour: number): string {
@@ -144,7 +146,10 @@ test("a suggested change and cancellation are confirmed, then saved", async ({
     name: `${BOOKER} · 4:00 PM–7:00 PM · Assistant test`,
   });
   await expect(block).toBeVisible();
-  await expect(page.getByRole("status")).toHaveText("Changes saved.");
+  const conversation = page.getByRole("list", { name: "Conversation" });
+  await expect(conversation).toContainText(
+    "✓ Changes saved: Camera C, " + DAY_TEXT + ", 4:00 PM – 7:00 PM",
+  );
   await expect(
     page.getByRole("button", { name: "Review the change" }),
   ).toBeHidden();
@@ -160,5 +165,9 @@ test("a suggested change and cancellation are confirmed, then saved", async ({
   await dialog.getByRole("button", { name: "Cancel booking" }).click();
   await expect(dialog).toBeHidden();
   await expect(block).toBeHidden();
-  await expect(page.getByRole("status")).toHaveText("Booking cancelled.");
+  await expect(conversation).toContainText(
+    "✓ Cancelled: Camera C, " + DAY_TEXT + ", 4:00 PM – 7:00 PM",
+  );
+  // Both lines stay, as a record of what was done.
+  await expect(conversation).toContainText("✓ Changes saved:");
 });

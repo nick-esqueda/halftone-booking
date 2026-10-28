@@ -41,6 +41,16 @@ const BOOKING = {
   version: 3,
   items: [{ equipment_id: CAMERA_A.id, equipment_name: "Camera A" }],
 } as Booking;
+// What the server saved from CHANGE_REPLY.
+const SAVED_CHANGE = {
+  ...BOOKING,
+  ends_at: "2026-10-29T18:00:00-05:00",
+  version: 4,
+  items: [
+    ...BOOKING.items,
+    { equipment_id: LIGHT_1.id, equipment_name: LIGHT_1.name },
+  ],
+};
 const ORIGINAL = {
   equipment_ids: [CAMERA_A.id],
   starts_at: BOOKING.starts_at,
@@ -77,7 +87,7 @@ function installApi(assistantReply: AssistantReply) {
     "GET /api/equipment": () => respond(200, [CAMERA_A, LIGHT_1]),
     "GET /api/bookings/7": () => respond(200, BOOKING),
     "GET /api/bookings/7/history": () => respond(200, []),
-    "PUT /api/bookings/7": () => respond(200, { ...BOOKING, version: 4 }),
+    "PUT /api/bookings/7": () => respond(200, SAVED_CHANGE),
     "POST /api/bookings/7/cancel": () =>
       respond(200, { ...BOOKING, is_cancelled: true, version: 4 }),
     "POST /api/assistant/draft": () => respond(200, assistantReply),
@@ -147,9 +157,11 @@ describe("assistant suggestions for existing bookings", () => {
         },
       ]),
     );
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Changes saved.",
-    );
+    expect(
+      await screen.findByText(
+        "✓ Changes saved: Camera A, Lighting Kit 1, Thu 29 Oct, 1:00 PM – 6:00 PM (Interview)",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Review the change" }),
     ).not.toBeInTheDocument();
@@ -181,9 +193,11 @@ describe("assistant suggestions for existing bookings", () => {
         { actor_name: "Sam K", version: 3 },
       ]),
     );
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      "Booking cancelled.",
-    );
+    expect(
+      await screen.findByText(
+        "✓ Cancelled: Camera A, Thu 29 Oct, 1:00 PM – 3:00 PM (Interview)",
+      ),
+    ).toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Review the cancellation" }),
     ).not.toBeInTheDocument();
