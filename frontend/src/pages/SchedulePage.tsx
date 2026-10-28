@@ -5,8 +5,6 @@ import { useState } from "react";
 import type { Booking } from "../api/types";
 import {
   CURRENT_TIME_REFRESH_MS,
-  DAY_VIEW_END_HOUR,
-  DAY_VIEW_START_HOUR,
   DEFAULT_BOOKING_HOURS,
   DEFAULT_BOOKING_START_HOUR,
   DAYS_PER_WEEK,
@@ -19,8 +17,19 @@ import {
 import { isInCategory } from "../features/availability/categories";
 import { CategoryFilter } from "../features/availability/CategoryFilter";
 import { DayTabs } from "../features/availability/DayTabs";
+import {
+  countHiddenBookings,
+  HOUR_RANGE_LABELS,
+  HOUR_RANGES,
+  type HourRangeName,
+} from "../features/availability/dayLayout";
 import { DayTimeline } from "../features/availability/DayTimeline";
+import {
+  HiddenBookingsHint,
+  HourRangeToggle,
+} from "../features/availability/HourRangeControls";
 import { useAvailability } from "../features/availability/useAvailability";
+import { useHourRange } from "../features/availability/useHourRange";
 import {
   BookingDialog,
   type BookingDialogRequest,
@@ -41,7 +50,6 @@ import {
 } from "../features/studio/studioTime";
 import { useCurrentTime } from "../features/studio/useCurrentTime";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
-import { formatHourLabel } from "../features/studio/clockTime";
 import { describeZone } from "../features/studio/viewerTime";
 
 const ALL_CATEGORIES = "all";
@@ -87,6 +95,7 @@ function Schedule({
   const todayStart = new TZDate(startOfDay(today), timezone);
   const [selectedDay, setSelectedDay] = useState(todayStart);
   const [selectedCategory, setSelectedCategory] = useState(ALL_CATEGORIES);
+  const [hourRangeName, setHourRangeName] = useHourRange();
   const [dialogRequest, setDialogRequest] =
     useState<BookingDialogRequest | null>(null);
   const { bookerName } = useBookerNameContext();
@@ -180,11 +189,22 @@ function Schedule({
       )}
       {availability.data && (
         <div className="space-y-3 rounded-xl border border-line bg-surface p-3">
-          <DayHeading day={selectedDay} timezone={timezone} />
+          <DayHeading
+            day={selectedDay}
+            timezone={timezone}
+            hourRangeName={hourRangeName}
+            hiddenCount={countHiddenBookings(
+              rows.flatMap((row) => row.busy),
+              selectedDay,
+              HOUR_RANGES[hourRangeName],
+            )}
+            onHourRangeChange={setHourRangeName}
+          />
           <DayTimeline
             day={selectedDay}
             now={today}
             rows={rows}
+            hourRange={HOUR_RANGES[hourRangeName]}
             timezone={timezone}
             timeStepMinutes={timeStepMinutes}
             currentBookerName={bookerName}
@@ -222,16 +242,39 @@ function buildDialogRequest(
   return { kind: "edit", bookingId, suggestion };
 }
 
-const VISIBLE_HOURS_TEXT = `${formatHourLabel(DAY_VIEW_START_HOUR)}–${formatHourLabel(DAY_VIEW_END_HOUR)}`;
+interface DayHeadingProps {
+  day: TZDate;
+  timezone: string;
+  hourRangeName: HourRangeName;
+  hiddenCount: number;
+  onHourRangeChange: (name: HourRangeName) => void;
+}
 
-/** Names the one day the timeline shows, so it can't be read as a week. */
-function DayHeading({ day, timezone }: { day: TZDate; timezone: string }) {
+/**
+ * Names the one day the timeline shows, so it can't be read as a week, and
+ * which hours of it are shown.
+ */
+function DayHeading({
+  day,
+  timezone,
+  hourRangeName,
+  hiddenCount,
+  onHourRangeChange,
+}: DayHeadingProps) {
   return (
-    <div>
-      <h2 className="text-lg font-semibold">{formatLongDay(day)}</h2>
-      <p className="text-sm text-ink-muted">
-        {VISIBLE_HOURS_TEXT} · Times are studio time: {describeZone(timezone)}
-      </p>
+    <div className="flex flex-wrap items-start justify-between gap-2">
+      <div>
+        <h2 className="text-lg font-semibold">{formatLongDay(day)}</h2>
+        <p className="text-sm text-ink-muted">
+          {HOUR_RANGE_LABELS[hourRangeName]} · Times are studio time:{" "}
+          {describeZone(timezone)}
+        </p>
+        <HiddenBookingsHint
+          count={hiddenCount}
+          onShowAll={() => onHourRangeChange("allDay")}
+        />
+      </div>
+      <HourRangeToggle selected={hourRangeName} onChange={onHourRangeChange} />
     </div>
   );
 }

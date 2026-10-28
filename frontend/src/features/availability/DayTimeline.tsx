@@ -1,32 +1,34 @@
 import type { TZDate } from "@date-fns/tz";
+import { isSameDay } from "date-fns";
 import type { MouseEvent } from "react";
 
 import type { BusySlot, EquipmentAvailability } from "../../api/types";
-import { getCategoryStyle, MIN_HOUR_WIDTH_PX } from "../../config/constants";
-import { formatTime } from "../studio/studioTime";
+import { getCategoryStyle } from "../../config/constants";
+import { formatTime, formatWeekday, toStudioDate } from "../studio/studioTime";
 import { describeInViewerTime, getViewerTimezone } from "../studio/viewerTime";
 import { groupByCategory } from "./categories";
 import {
-  buildHourLabels,
+  buildHourMarks,
   computeBlockPosition,
   computeNowPercent,
   computeTimeAtFraction,
-  VISIBLE_HOUR_COUNT,
+  countHours,
+  type BlockPosition,
+  type HourMark,
+  type HourRange,
 } from "./dayLayout";
 
 interface DayTimelineProps {
   day: TZDate;
   now: Date;
   rows: EquipmentAvailability[];
+  hourRange: HourRange;
   timezone: string;
   timeStepMinutes: number;
   currentBookerName: string;
   onBookingClick: (bookingId: number) => void;
   onEmptySlotClick: (equipmentId: number, startTime: string) => void;
 }
-
-const HOUR_LABELS = buildHourLabels();
-const MIN_TRACK_WIDTH_PX = VISIBLE_HOUR_COUNT * MIN_HOUR_WIDTH_PX;
 
 // The item names stay pinned on the left while the hours scroll sideways.
 const NAME_COLUMN_CLASS_NAME =
@@ -38,14 +40,22 @@ const NAME_COLUMN_CLASS_NAME =
  */
 export function DayTimeline(props: DayTimelineProps) {
   const groups = groupByCategory(props.rows);
-  const nowPercent = computeNowPercent(props.day, props.now);
+  const nowPercent = computeNowPercent(props.day, props.now, props.hourRange);
   const nowLabel = formatTime(props.now.toISOString(), props.timezone);
+  const hourMarks = buildHourMarks(props.day, props.hourRange);
+  const trackWidthPx =
+    countHours(props.hourRange) * props.hourRange.minHourWidthPx;
 
   return (
     <div className="overflow-x-auto">
       {/* As wide as the scrolled content, so the pinned names stay pinned to the end. */}
       <div className="w-max min-w-full">
-        <HourHeader nowPercent={nowPercent} nowLabel={nowLabel} />
+        <HourHeader
+          hourMarks={hourMarks}
+          trackWidthPx={trackWidthPx}
+          nowPercent={nowPercent}
+          nowLabel={nowLabel}
+        />
         {groups.map((group) => (
           <section
             key={group.category}
@@ -57,6 +67,8 @@ export function DayTimeline(props: DayTimelineProps) {
                 key={row.equipment.id}
                 row={row}
                 nowPercent={nowPercent}
+                hourMarks={hourMarks}
+                trackWidthPx={trackWidthPx}
                 {...props}
               />
             ))}
@@ -67,12 +79,22 @@ export function DayTimeline(props: DayTimelineProps) {
   );
 }
 
-interface HourHeaderProps {
+interface TrackProps {
+  hourMarks: HourMark[];
+  trackWidthPx: number;
+}
+
+interface HourHeaderProps extends TrackProps {
   nowPercent: number | null;
   nowLabel: string;
 }
 
-function HourHeader({ nowPercent, nowLabel }: HourHeaderProps) {
+function HourHeader({
+  hourMarks,
+  trackWidthPx,
+  nowPercent,
+  nowLabel,
+}: HourHeaderProps) {
   return (
     <div className="flex">
       <div
@@ -80,17 +102,14 @@ function HourHeader({ nowPercent, nowLabel }: HourHeaderProps) {
       >
         Equipment
       </div>
-      <div
-        className="relative h-10 flex-1"
-        style={{ minWidth: MIN_TRACK_WIDTH_PX }}
-      >
-        {HOUR_LABELS.map((label, index) => (
+      <div className="relative h-10 flex-1" style={{ minWidth: trackWidthPx }}>
+        {hourMarks.map((mark) => (
           <span
-            key={label}
-            className="absolute top-0 pl-1 text-xs tabular-nums text-ink-faint"
-            style={{ left: `${(index / VISIBLE_HOUR_COUNT) * 100}%` }}
+            key={mark.percent}
+            className="absolute top-0 whitespace-nowrap pl-1 text-xs tabular-nums text-ink-faint"
+            style={{ left: `${mark.percent}%` }}
           >
-            {label}
+            {mark.label}
           </span>
         ))}
         {nowPercent !== null && (
@@ -125,7 +144,7 @@ function CategoryHeading({ category }: { category: string }) {
   );
 }
 
-interface EquipmentRowProps extends DayTimelineProps {
+interface EquipmentRowProps extends DayTimelineProps, TrackProps {
   row: EquipmentAvailability;
   nowPercent: number | null;
 }
@@ -133,6 +152,9 @@ interface EquipmentRowProps extends DayTimelineProps {
 function EquipmentRow({
   row,
   day,
+  hourRange,
+  hourMarks,
+  trackWidthPx,
   nowPercent,
   timezone,
   timeStepMinutes,
@@ -147,7 +169,7 @@ function EquipmentRow({
     const fraction = (event.clientX - bounds.left) / bounds.width;
     onEmptySlotClick(
       row.equipment.id,
-      computeTimeAtFraction(day, fraction, timeStepMinutes),
+      computeTimeAtFraction(day, fraction, timeStepMinutes, hourRange),
     );
   };
 
@@ -167,16 +189,17 @@ function EquipmentRow({
         aria-label={`Book ${row.equipment.name}`}
         data-testid={`row-${row.equipment.id}`}
         className="relative h-12 flex-1 cursor-pointer hover:bg-muted"
-        style={{ minWidth: MIN_TRACK_WIDTH_PX }}
+        style={{ minWidth: trackWidthPx }}
         onClick={handleTrackClick}
       >
-        <HourLines />
+        <HourLines hourMarks={hourMarks} />
         {nowPercent !== null && <NowLine percent={nowPercent} />}
         {row.busy.map((slot) => (
           <BookingBlock
             key={slot.booking_id}
             slot={slot}
             day={day}
+            hourRange={hourRange}
             timezone={timezone}
             isMine={isSameName(slot.booker_name, currentBookerName)}
             onClick={onBookingClick}
@@ -191,14 +214,14 @@ function isSameName(first: string, second: string): boolean {
   return first.trim().toLowerCase() === second.trim().toLowerCase();
 }
 
-function HourLines() {
+function HourLines({ hourMarks }: { hourMarks: HourMark[] }) {
   return (
     <>
-      {HOUR_LABELS.map((label, index) => (
+      {hourMarks.map((mark) => (
         <div
-          key={label}
+          key={mark.percent}
           className="pointer-events-none absolute inset-y-0 border-l border-line"
-          style={{ left: `${(index / VISIBLE_HOUR_COUNT) * 100}%` }}
+          style={{ left: `${mark.percent}%` }}
         />
       ))}
     </>
@@ -218,6 +241,7 @@ function NowLine({ percent }: { percent: number }) {
 interface BookingBlockProps {
   slot: BusySlot;
   day: TZDate;
+  hourRange: HourRange;
   timezone: string;
   isMine: boolean;
   onClick: (bookingId: number) => void;
@@ -225,20 +249,47 @@ interface BookingBlockProps {
 
 const MINE_CLASS_NAME = "border-accent bg-accent-soft";
 const OTHERS_CLASS_NAME = "border-line-strong bg-muted";
+// A block that runs past the visible hours has a square, open edge there.
+const CONTINUES_BEFORE_CLASS_NAME = "rounded-l-none border-l-0";
+const CONTINUES_AFTER_CLASS_NAME = "rounded-r-none border-r-0";
+
+/** "6:00 PM–8:00 PM", or with weekdays when the booking spans days. */
+function describeBlockTime(slot: BusySlot, timezone: string): string {
+  const start = toStudioDate(slot.starts_at, timezone);
+  const end = toStudioDate(slot.ends_at, timezone);
+  const startTime = formatTime(slot.starts_at, timezone);
+  const endTime = formatTime(slot.ends_at, timezone);
+  if (isSameDay(start, end)) {
+    return `${startTime}–${endTime}`;
+  }
+  return `${formatWeekday(start)} ${startTime}–${formatWeekday(end)} ${endTime}`;
+}
+
+function describeEdges(position: BlockPosition): string {
+  const before = position.continuesBefore ? CONTINUES_BEFORE_CLASS_NAME : "";
+  const after = position.continuesAfter ? CONTINUES_AFTER_CLASS_NAME : "";
+  return `${before} ${after}`;
+}
 
 function BookingBlock({
   slot,
   day,
+  hourRange,
   timezone,
   isMine,
   onClick,
 }: BookingBlockProps) {
-  const position = computeBlockPosition(slot.starts_at, slot.ends_at, day);
+  const position = computeBlockPosition(
+    slot.starts_at,
+    slot.ends_at,
+    day,
+    hourRange,
+  );
   if (position === null) {
     return null;
   }
 
-  const timeRange = `${formatTime(slot.starts_at, timezone)}–${formatTime(slot.ends_at, timezone)}`;
+  const timeRange = describeBlockTime(slot, timezone);
   const name = isMine ? "You" : slot.booker_name;
   const details = [slot.booker_name, timeRange, slot.purpose]
     .filter(Boolean)
@@ -259,14 +310,18 @@ function BookingBlock({
         event.stopPropagation();
         onClick(slot.booking_id);
       }}
-      className={`absolute inset-y-1 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] leading-tight ${isMine ? MINE_CLASS_NAME : OTHERS_CLASS_NAME}`}
+      className={`absolute inset-y-1 overflow-hidden rounded-md border px-1.5 py-0.5 text-left text-[11px] leading-tight ${isMine ? MINE_CLASS_NAME : OTHERS_CLASS_NAME} ${describeEdges(position)}`}
       style={{
         left: `${position.leftPercent}%`,
         width: `${position.widthPercent}%`,
       }}
     >
       <span className="block truncate font-semibold">{name}</span>
-      <span className="block truncate text-ink-muted">{timeRange}</span>
+      <span className="block truncate text-ink-muted">
+        {position.continuesBefore && <span aria-hidden="true">‹ </span>}
+        {timeRange}
+        {position.continuesAfter && <span aria-hidden="true"> ›</span>}
+      </span>
     </button>
   );
 }
