@@ -7,6 +7,8 @@ import { installFakeApi, respond } from "../../test/fakeApi";
 import { renderWithProviders } from "../../test/renderWithProviders";
 import { readTime } from "../../test/timePicker";
 import { SchedulePage } from "../../pages/SchedulePage";
+import { useBookerNameContext } from "../identity/bookerNameStore";
+import { NameInput } from "../identity/NameInput";
 
 const CAMERA_A = {
   id: 1,
@@ -94,6 +96,20 @@ async function ask(message: string) {
   await userEvent.clear(input);
   await userEvent.type(input, message);
   await userEvent.click(screen.getByRole("button", { name: "Ask" }));
+}
+
+/** The "Booking as" field, as the app header shows it. */
+function BookingAsField() {
+  const { bookerName, setBookerName } = useBookerNameContext();
+  return (
+    <NameInput label="Booking as" value={bookerName} onChange={setBookerName} />
+  );
+}
+
+async function bookAs(name: string) {
+  const field = screen.getByLabelText("Booking as");
+  await userEvent.clear(field);
+  await userEvent.type(field, name);
 }
 
 describe("AssistantPanel", () => {
@@ -224,6 +240,34 @@ describe("AssistantPanel", () => {
         { role: "assistant", text: QUESTION_REPLY.message },
       ],
     });
+  });
+
+  it("labels questions with the name they were sent under", async () => {
+    installApi(() => respond(200, MESSAGE_REPLY));
+    renderWithProviders(
+      <>
+        <BookingAsField />
+        <SchedulePage />
+      </>,
+    );
+
+    await bookAs("Sam K");
+    await ask("Camera A Thursday");
+    await screen.findByText(MESSAGE_REPLY.message);
+    await bookAs("Ana");
+    await ask("Camera B Thursday");
+    await screen.findByText("Camera B Thursday");
+
+    const lines = within(
+      screen.getByRole("list", { name: "Conversation" }),
+    ).getAllByRole("listitem");
+    expect(lines.map((line) => line.textContent)).toEqual([
+      "Sam K: Camera A Thursday",
+      `Assistant: ${MESSAGE_REPLY.message}`,
+      "Now booking as Ana",
+      "Ana: Camera B Thursday",
+      `Assistant: ${MESSAGE_REPLY.message}`,
+    ]);
   });
 
   it("starts over with an empty conversation", async () => {

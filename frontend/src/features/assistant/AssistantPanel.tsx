@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 
 import type { AssistantReply, Booking } from "../../api/types";
 import { Button } from "../../components/ui/Button";
@@ -55,7 +55,9 @@ export function AssistantPanel({ timezone, onOpen }: AssistantPanelProps) {
   };
 
   const showReply = (question: string, reply: AssistantReply) => {
-    setConversation((earlier) => addExchange(earlier, question, reply.message));
+    setConversation((earlier) =>
+      addExchange(earlier, question, reply.message, bookerName),
+    );
     setLastReply(reply);
     setMessage("");
     const action = findReplyAction(reply);
@@ -127,16 +129,41 @@ export function AssistantPanel({ timezone, onOpen }: AssistantPanelProps) {
   );
 }
 
-// Who each line is from. Confirmed lines come from the app, not a speaker.
-const SPEAKER_NAMES: Record<ConversationEntry["role"], string | null> = {
-  user: "You",
-  assistant: "Assistant",
-  confirmed: null,
+// Shown when a question was sent without a "Booking as" name.
+const UNNAMED_SPEAKER = "You";
+
+interface NoteStyle {
+  prefix: string;
+  className: string;
+}
+
+// Lines from the app rather than a speaker, and how each kind looks.
+const NOTE_STYLES: Partial<Record<ConversationEntry["role"], NoteStyle>> = {
+  confirmed: { prefix: "✓ ", className: "font-medium text-success" },
+  switched: {
+    prefix: "",
+    className: "block border-t border-line pt-1 text-xs text-ink-muted",
+  },
 };
 
+/** The conversation, scrolling once it's taller than its box. */
 function Conversation({ entries }: { entries: ConversationEntry[] }) {
+  const listRef = useRef<HTMLOListElement>(null);
+  // Keep the newest line in view as lines are added.
+  useEffect(() => {
+    const list = listRef.current;
+    if (list) {
+      list.scrollTop = list.scrollHeight;
+    }
+  }, [entries.length]);
+
   return (
-    <ol aria-label="Conversation" className="space-y-1 text-sm">
+    <ol
+      ref={listRef}
+      aria-label="Conversation"
+      tabIndex={0}
+      className="max-h-56 space-y-1 overflow-y-auto pr-1 text-sm"
+    >
       {entries.map((entry, index) => (
         <li key={index}>
           <ConversationLine entry={entry} />
@@ -147,10 +174,17 @@ function Conversation({ entries }: { entries: ConversationEntry[] }) {
 }
 
 function ConversationLine({ entry }: { entry: ConversationEntry }) {
-  const speaker = SPEAKER_NAMES[entry.role];
-  if (speaker === null) {
-    return <span className="font-medium text-success">✓ {entry.text}</span>;
+  const note = NOTE_STYLES[entry.role];
+  if (note) {
+    return (
+      <span className={note.className}>
+        {note.prefix}
+        {entry.text}
+      </span>
+    );
   }
+  const speaker =
+    entry.role === "user" ? entry.bookerName || UNNAMED_SPEAKER : "Assistant";
   return (
     <>
       <span className="font-semibold">{speaker}:</span>{" "}

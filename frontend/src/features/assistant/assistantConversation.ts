@@ -16,33 +16,66 @@ import { formatTimeRange, splitWallClockTime } from "../studio/studioTime";
 export const MAX_HISTORY_ENTRIES = 10;
 
 /**
- * One line of the conversation. "confirmed" lines record what the person
- * saved or cancelled in the form; they're shown, but not sent to the API.
+ * One line of the conversation. Questions keep the "Booking as" name they
+ * were sent under. "confirmed" lines record what the person saved or
+ * cancelled in the form, and "switched" lines mark a change of name; both are
+ * shown, but not sent to the API.
  */
 export type ConversationEntry =
-  AssistantHistoryEntry | { role: "confirmed"; text: string };
+  | { role: "user"; text: string; bookerName: string }
+  | { role: "assistant"; text: string }
+  | { role: "confirmed"; text: string }
+  | { role: "switched"; text: string };
 
-/** The conversation with one more question and answer. */
+type MessageEntry = Extract<ConversationEntry, { role: "user" | "assistant" }>;
+
+const MESSAGE_ROLES: ReadonlySet<ConversationEntry["role"]> = new Set([
+  "user",
+  "assistant",
+]);
+
+/**
+ * The conversation with one more question and answer, after a "Now booking
+ * as …" line if the name changed since the last question.
+ */
 export function addExchange(
   conversation: ConversationEntry[],
   question: string,
   answer: string,
+  bookerName: string,
 ): ConversationEntry[] {
-  return [
-    ...conversation,
-    { role: "user", text: question },
+  const name = bookerName.trim();
+  const exchange: ConversationEntry[] = [
+    { role: "user", text: question, bookerName: name },
     { role: "assistant", text: answer },
   ];
+  const lastName = findLastBookerName(conversation);
+  const switched = lastName !== null && !isSameName(lastName, name);
+  const divider: ConversationEntry[] = switched
+    ? [{ role: "switched", text: `Now booking as ${name || "no name"}` }]
+    : [];
+  return [...conversation, ...divider, ...exchange];
+}
+
+function findLastBookerName(conversation: ConversationEntry[]): string | null {
+  const questions = conversation.filter((entry) => entry.role === "user");
+  return questions.at(-1)?.bookerName ?? null;
+}
+
+function isSameName(first: string, second: string): boolean {
+  return first.toLowerCase() === second.toLowerCase();
 }
 
 /** The most recent messages, as the API takes them. */
 export function toHistory(
   conversation: ConversationEntry[],
 ): AssistantHistoryEntry[] {
-  const messages = conversation.filter(
-    (entry): entry is AssistantHistoryEntry => entry.role !== "confirmed",
+  const messages = conversation.filter((entry): entry is MessageEntry =>
+    MESSAGE_ROLES.has(entry.role),
   );
-  return messages.slice(-MAX_HISTORY_ENTRIES);
+  return messages
+    .slice(-MAX_HISTORY_ENTRIES)
+    .map(({ role, text }) => ({ role, text }));
 }
 
 /** Starting values for the booking form, filled in from a draft. */

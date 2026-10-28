@@ -19,6 +19,8 @@ const CAMERA_C_ID = 3;
 const DAYS_AHEAD = 9;
 const CONFIG_URL = "**/api/config";
 const ASSISTANT_URL = "**/api/assistant/draft";
+// The conversation box's max-h-56, in pixels.
+const MAX_CONVERSATION_HEIGHT_PX = 224;
 
 const TEST_DAY = addDays(TZDate.tz(STUDIO_TIMEZONE), DAYS_AHEAD);
 const STUDIO_DATE = format(TEST_DAY, "yyyy-MM-dd");
@@ -170,4 +172,26 @@ test("a suggested change and cancellation are confirmed, then saved", async ({
   );
   // Both lines stay, as a record of what was done.
   await expect(conversation).toContainText("✓ Changes saved:");
+});
+
+test("a long conversation scrolls, keeping the newest line in view", async ({
+  page,
+}) => {
+  const reply = {
+    kind: "message",
+    message: "Which day and time would you like?",
+    draft: null,
+    options: [],
+  };
+  await page.goto("/");
+  for (let round = 1; round <= 8; round += 1) {
+    await askAssistant(page, `Question ${round}`, reply);
+    await expect(page.getByText(`Question ${round}`)).toBeVisible();
+  }
+
+  const conversation = page.getByRole("list", { name: "Conversation" });
+  const box = await conversation.boundingBox();
+  expect(box?.height).toBeLessThanOrEqual(MAX_CONVERSATION_HEIGHT_PX);
+  await expect(conversation.getByText("Question 8")).toBeInViewport();
+  await expect(conversation.getByText("Question 1")).not.toBeInViewport();
 });
