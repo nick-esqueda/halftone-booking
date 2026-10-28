@@ -4,6 +4,7 @@ This is the one place booking writes happen. The HTTP layer, and later the
 AI assistant, call these methods; neither touches the tables directly.
 """
 
+import logging
 from zoneinfo import ZoneInfo
 
 from sqlalchemy.exc import IntegrityError
@@ -24,7 +25,22 @@ from app.services.booking_rules import (
 )
 from app.services.booking_times import TimeSpan, describe_span, get_booking_span
 from app.services.conflicts import ConflictChecker, is_overlap_violation
-from app.studio_time import Clock, convert_to_utc
+from app.studio_time import Clock, convert_to_studio_time, convert_to_utc
+
+logger = logging.getLogger(__name__)
+
+
+def describe_draft_fields(
+    draft: BookingDraft, studio_zone: ZoneInfo
+) -> dict[str, object]:
+    """The draft's equipment and times, in studio time, for log lines."""
+    starts_at = convert_to_studio_time(draft.starts_at, studio_zone)
+    ends_at = convert_to_studio_time(draft.ends_at, studio_zone)
+    return {
+        "equipment_ids": draft.equipment_ids,
+        "starts_at": starts_at.isoformat(),
+        "ends_at": ends_at.isoformat(),
+    }
 
 
 class BookingService:
@@ -59,6 +75,7 @@ class BookingService:
         self._record_event(booking, "created", draft.booker_name, summary)
 
         self._commit(draft, excluded_booking_id=None)
+        self._log_saved("Booking created", booking, draft)
         return self.get_booking(booking.id)
 
     def update_booking(self, booking_id: int, request: BookingUpdateRequest) -> Booking:
@@ -79,6 +96,7 @@ class BookingService:
         self._record_event(booking, "updated", draft.booker_name, summary)
 
         self._commit(draft, excluded_booking_id=booking.id)
+        self._log_saved("Booking updated", booking, draft)
         return self.get_booking(booking.id)
 
     def cancel_booking(self, booking_id: int, request: BookingCancelRequest) -> Booking:
@@ -98,10 +116,15 @@ class BookingService:
         summary = f"Cancelled {describe_span(span, self.studio_zone)}"
         self._record_event(booking, "cancelled", actor_name, summary)
         self.session.commit()
+
+        fields = {"booking_id": booking.id, "version": booking.version}
+        logger.info("Booking cancelled", extra=fields)
         return self.get_booking(booking.id)
 
     def list_bookings_for(self, booker_name: str) -> list[Booking]:
-        return self.bookings.list_by_booker(normalize_name(booker_name))
+        bookings = self.bookings.list_by_booker(normalize_name(booker_name))
+        logger.debug("Listed bookings for a booker", extra={"count": len(bookings)})
+        return bookings
 
     def list_booker_names(self) -> list[str]:
         return self.bookings.list_booker_names()
@@ -111,13 +134,19 @@ class BookingService:
         return self.bookings.list_events(booking_id)
 
     def _build_draft(self, request: BookingRequest) -> BookingDraft:
-        return BookingDraft(
+        draft = BookingDraft(
             booker_name=normalize_name(request.booker_name),
             purpose=request.purpose.strip(),
             equipment_ids=list(request.equipment_ids),
             starts_at=convert_to_utc(request.starts_at, self.studio_zone),
             ends_at=convert_to_utc(request.ends_at, self.studio_zone),
         )
+
+        # Names and purposes are personal, so they appear at DEBUG only.
+        fields = describe_draft_fields(draft, self.studio_zone)
+        personal_fields = {"booker_name": draft.booker_name, "purpose": draft.purpose}
+        logger.debug("Draft built", extra={**fields, **personal_fields})
+        return draft
 
     def _validate(
         self, draft: BookingDraft, original_times: OriginalTimes | None
@@ -137,6 +166,8 @@ class BookingService:
         if booking is None:
             raise NotFoundError(f"Booking {booking_id} doesn't exist.")
         if booking.version != expected_version:
+            versions = {"expected": expected_version, "actual": booking.version}
+            logger.debug("Stale booking version", extra=versions)
             raise StaleVersionError(
                 "Someone else changed this booking since you opened it."
             )
@@ -179,6 +210,11 @@ class BookingService:
         ]
         self._add_items(booking, new_ids, draft)
 
+    def _log_saved(self, message: str, booking: Booking, draft: BookingDraft) -> None:
+        fields = describe_draft_fields(draft, self.studio_zone)
+        ids = {"booking_id": booking.id, "version": booking.version}
+        logger.info(message, extra={**ids, **fields})
+
     def _record_event(
         self, booking: Booking, action: str, actor_name: str, summary: str
     ) -> None:
@@ -201,6 +237,10 @@ class BookingService:
             self.session.rollback()
             if not is_overlap_violation(error):
                 raise
+            # Another request saved an overlapping booking between our
+            # conflict check and this commit; the database caught it.
+            fields = {"equipment_ids": draft.equipment_ids}
+            logger.warning("Database blocked a racing double booking", extra=fields)
             self.conflict_checker.raise_if_conflicts(
                 draft.equipment_ids, draft.starts_at, draft.ends_at, excluded_booking_id
             )

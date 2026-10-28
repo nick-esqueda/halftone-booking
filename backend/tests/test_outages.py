@@ -68,6 +68,7 @@ def test_database_outage_is_a_503_in_the_shared_shape(
         "code": "service_unavailable",
         "message": "Booking is temporarily unavailable. Please try again in a minute.",
         "conflicts": [],
+        "request_id": response.headers["X-Request-ID"],
     }
 
 
@@ -90,4 +91,5 @@ def test_unexpected_error_is_a_500_without_internals(
     assert response.status_code == 500
     body = response.json()
     assert body["code"] == "internal_error"
+    assert body["request_id"] == response.headers["X-Request-ID"]
     assert "clock exploded" not in response.text

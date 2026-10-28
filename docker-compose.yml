@@ -1,5 +1,6 @@
 # Local development: database, API and web app, all with hot reload.
 # `make up` starts it; the API runs migrations and seeds equipment on start.
+# API logs go to the console (`make logs`) and, as JSON lines, to ./logs/api.log.
 services:
   db:
     image: postgres:16
@@ -19,13 +20,21 @@ services:
 
   api:
     build: ./backend
+    # Run as your user so files in ./logs are yours, not root's (Linux hosts).
+    # `make up` sets these; Docker Desktop on Mac and Windows maps them anyway.
+    user: "${HOST_UID:-1000}:${HOST_GID:-1000}"
+    # --reload-dir: watch only the code, never the log files.
     command: >
       sh -c "alembic upgrade head && python -m app.seed &&
-             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+             uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --reload-dir app"
     environment:
       BOOKING_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-booking}
       BOOKING_STUDIO_TIMEZONE: ${BOOKING_STUDIO_TIMEZONE:-America/Chicago}
       BOOKING_TIME_STEP_MINUTES: ${BOOKING_TIME_STEP_MINUTES:-15}
+      BOOKING_LOG_LEVEL: ${BOOKING_LOG_LEVEL:-DEBUG}
+      BOOKING_LOG_LEVELS: ${BOOKING_LOG_LEVELS:-}
+      BOOKING_LOG_SINKS: ${BOOKING_LOG_SINKS:-console,file}
+      BOOKING_LOG_DIR: /app/logs
     ports:
       - "8000:8000"
     healthcheck:
@@ -40,6 +49,7 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/migrations:/app/migrations
+      - ./logs:/app/logs
     depends_on:
       db:
         condition: service_healthy

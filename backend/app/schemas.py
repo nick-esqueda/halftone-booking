@@ -107,6 +107,8 @@ class ErrorResponse(BaseModel):
     code: str
     message: str
     conflicts: list[ConflictResponse] = []
+    # Matches the X-Request-ID response header; quote it to find the API's logs.
+    request_id: str | None = None
 
 
 class HealthResponse(BaseModel):

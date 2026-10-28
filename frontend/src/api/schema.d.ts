@@ -356,6 +356,8 @@ export interface components {
              * @default []
              */
             conflicts: components["schemas"]["ConflictResponse"][];
+            /** Request Id */
+            request_id?: string | null;
         };
         /** HealthResponse */
         HealthResponse: {
