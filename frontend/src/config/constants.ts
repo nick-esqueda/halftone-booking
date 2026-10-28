@@ -2,12 +2,14 @@
 
 export const NAME_STORAGE_KEY = "halftone-booking:booker-name";
 export const THEME_STORAGE_KEY = "halftone-booking:theme";
+export const HOUR_RANGE_STORAGE_KEY = "halftone-booking:schedule-hours";
 
 // The day timeline shows these hours, in studio time.
 export const DAY_VIEW_START_HOUR = 7;
 export const DAY_VIEW_END_HOUR = 22;
 // Narrower than this and the timeline scrolls sideways instead of squashing.
 export const MIN_HOUR_WIDTH_PX = 56;
+export const MIN_ALL_DAY_HOUR_WIDTH_PX = 36;
 // How often the current-time line on the timeline moves.
 export const CURRENT_TIME_REFRESH_MS = 60_000;
 
