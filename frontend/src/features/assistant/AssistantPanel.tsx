@@ -54,13 +54,15 @@ export function AssistantPanel({ timezone, onOpen }: AssistantPanelProps) {
     });
   };
 
+  // A reply that opens a booking form is seen there; any other reply gets a
+  // brief highlight in the conversation instead.
   const showReply = (question: string, reply: AssistantReply) => {
+    const action = findReplyAction(reply);
     setConversation((earlier) =>
-      addExchange(earlier, question, reply.message, bookerName),
+      addExchange(earlier, question, reply.message, bookerName, !action),
     );
     setLastReply(reply);
     setMessage("");
-    const action = findReplyAction(reply);
     if (action) {
       openTarget(action.target);
     }
@@ -165,12 +167,21 @@ function Conversation({ entries }: { entries: ConversationEntry[] }) {
       className="max-h-56 space-y-1 overflow-y-auto pr-1 text-sm"
     >
       {entries.map((entry, index) => (
-        <li key={index}>
+        <li key={index} className={highlightClassName(entry)}>
           <ConversationLine entry={entry} />
         </li>
       ))}
     </ol>
   );
+}
+
+// Plays once, when the line first appears; skipped for reduced motion.
+const HIGHLIGHT_CLASS_NAME =
+  "-mx-1 rounded px-1 motion-safe:animate-reply-highlight";
+
+function highlightClassName(entry: ConversationEntry): string {
+  const isHighlighted = entry.role === "assistant" && entry.highlighted;
+  return isHighlighted ? HIGHLIGHT_CLASS_NAME : "";
 }
 
 function ConversationLine({ entry }: { entry: ConversationEntry }) {
