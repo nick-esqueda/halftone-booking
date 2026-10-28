@@ -10,9 +10,11 @@ import {
   DEFAULT_BOOKING_START_HOUR,
   DAYS_PER_WEEK,
 } from "../config/constants";
-import type { DraftBooking } from "../api/types";
 import { AssistantPanel } from "../features/assistant/AssistantPanel";
-import { buildDefaultsFromDraft } from "../features/assistant/assistantConversation";
+import {
+  buildDefaultsFromDraft,
+  type ReplyTarget,
+} from "../features/assistant/assistantConversation";
 import { isInCategory } from "../features/availability/categories";
 import { CategoryFilter } from "../features/availability/CategoryFilter";
 import { DayTabs } from "../features/availability/DayTabs";
@@ -111,12 +113,13 @@ function Schedule({
     setDialogRequest({ kind: "create", defaults });
   };
 
-  // Show the draft's day behind the form, so the person sees what's around it.
-  const openDraft = (draft: DraftBooking) => {
-    const draftStart = toStudioDate(draft.starts_at, timezone);
-    setSelectedDay(new TZDate(startOfDay(draftStart), timezone));
-    const defaults = buildDefaultsFromDraft(draft, bookerName, timezone);
-    setDialogRequest({ kind: "create", defaults });
+  // Show the suggestion's day behind the form, so the person sees what's around it.
+  const openAssistantReply = (target: ReplyTarget) => {
+    const startsAt =
+      target.kind === "draft" ? target.draft.starts_at : target.startsAt;
+    const studioStart = toStudioDate(startsAt, timezone);
+    setSelectedDay(new TZDate(startOfDay(studioStart), timezone));
+    setDialogRequest(buildDialogRequest(target, bookerName, timezone));
   };
 
   const showWeekOffset = (weekOffset: number) => {
@@ -125,7 +128,7 @@ function Schedule({
 
   return (
     <div className="space-y-4">
-      {isAssistantEnabled && <AssistantPanel onOpenDraft={openDraft} />}
+      {isAssistantEnabled && <AssistantPanel onOpen={openAssistantReply} />}
       <DayTabs
         days={weekDays}
         selectedDay={selectedDay}
@@ -196,6 +199,20 @@ function Schedule({
       />
     </div>
   );
+}
+
+/** The booking dialog that shows an assistant suggestion for review. */
+function buildDialogRequest(
+  target: ReplyTarget,
+  bookerName: string,
+  timezone: string,
+): BookingDialogRequest {
+  if (target.kind === "draft") {
+    const defaults = buildDefaultsFromDraft(target.draft, bookerName, timezone);
+    return { kind: "create", defaults };
+  }
+  const { bookingId, suggestion } = target;
+  return { kind: "edit", bookingId, suggestion };
 }
 
 const VISIBLE_HOURS_TEXT = `${formatHourLabel(DAY_VIEW_START_HOUR)}–${formatHourLabel(DAY_VIEW_END_HOUR)}`;

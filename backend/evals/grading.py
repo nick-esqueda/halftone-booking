@@ -155,6 +155,11 @@ def check_message_excludes(unwanted: list[str], context: GradingContext) -> str 
     return f"message says {found}" if found else None
 
 
+def check_booking_id(expected: int, context: GradingContext) -> str | None:
+    booking_id = context.reply.booking_id
+    return None if booking_id == expected else f"booking_id was {booking_id}"
+
+
 # Each `expect` field and the check that grades it.
 CHECKS: dict[str, Check] = {
     "kind": check_kind,
@@ -170,6 +175,7 @@ CHECKS: dict[str, Check] = {
     "options_equipment": check_options_equipment,
     "message_contains_any": check_message_contains_any,
     "message_excludes": check_message_excludes,
+    "booking_id": check_booking_id,
 }
 
 

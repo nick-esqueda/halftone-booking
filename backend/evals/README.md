@@ -39,8 +39,8 @@ time, and all times are studio wall-clock times (`2026-10-29T13:00`).
 
 | Field | Passes when |
 |---|---|
-| `kind` | The reply is `"draft"`, `"question"` or `"message"` (or any in a list). |
-| `equipment` | The draft has exactly these items. |
+| `kind` | The reply is `"draft"`, `"change"`, `"cancel"`, `"question"` or `"message"` (or any in a list). |
+| `equipment` | The draft (or the changed booking) has exactly these items. |
 | `equipment_includes` | The draft has at least these items. |
 | `excluded_equipment` | No draft or option uses these items. |
 | `categories` | The draft has this many items per category, e.g. `{"camera": 1}`. |
@@ -51,5 +51,6 @@ time, and all times are studio wall-clock times (`2026-10-29T13:00`).
 | `options_equipment` | Every option has exactly these items. |
 | `message_contains_any` | The reply's message contains at least one of these phrases (any case). |
 | `message_excludes` | The reply's message contains none of these phrases (any case). |
+| `booking_id` | A change or cancel is for this booking (case bookings are numbered from 1, in order). |
 
 To add a new kind of check, see `grading.py`.

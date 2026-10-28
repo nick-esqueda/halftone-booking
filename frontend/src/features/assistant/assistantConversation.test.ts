@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   addExchange,
   buildDefaultsFromDraft,
+  findReplyAction,
   MAX_HISTORY_ENTRIES,
 } from "./assistantConversation";
 
@@ -44,5 +45,57 @@ describe("buildDefaultsFromDraft", () => {
       endTime: "15:30",
       equipmentIds: [1, 4],
     });
+  });
+});
+
+describe("findReplyAction", () => {
+  const draft = {
+    equipment_ids: [1],
+    starts_at: "2026-10-29T18:00:00Z",
+    ends_at: "2026-10-29T20:00:00Z",
+    purpose: "",
+  };
+  const base = { message: "Hi", draft: null, options: [] };
+
+  it("opens a new booking for a draft", () => {
+    expect(findReplyAction({ ...base, kind: "draft", draft })).toEqual({
+      label: "Review the draft",
+      target: { kind: "draft", draft },
+    });
+  });
+
+  it("opens the booking with the change for a change", () => {
+    const reply = { ...base, kind: "change" as const, draft, booking_id: 7 };
+
+    expect(findReplyAction(reply)).toEqual({
+      label: "Review the change",
+      target: {
+        kind: "booking",
+        bookingId: 7,
+        suggestion: { kind: "change", draft },
+        startsAt: draft.starts_at,
+      },
+    });
+  });
+
+  it("opens the booking to confirm a cancellation", () => {
+    const reply = {
+      ...base,
+      kind: "cancel" as const,
+      original: draft,
+      booking_id: 7,
+    };
+
+    expect(findReplyAction(reply)?.target).toEqual({
+      kind: "booking",
+      bookingId: 7,
+      suggestion: { kind: "cancel" },
+      startsAt: draft.starts_at,
+    });
+  });
+
+  it("opens nothing for questions and messages", () => {
+    expect(findReplyAction({ ...base, kind: "question" })).toBeNull();
+    expect(findReplyAction({ ...base, kind: "message" })).toBeNull();
   });
 });

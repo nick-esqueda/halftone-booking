@@ -7,14 +7,17 @@ import { useCancelAsViewer } from "./useCancelAsViewer";
 interface CancelBookingSectionProps {
   booking: Booking;
   onCancelled?: () => void;
+  /** Open already asking "Cancel this booking?", e.g. when the assistant suggested it. */
+  startConfirming?: boolean;
 }
 
 /** A Cancel button for the booking dialog's footer that asks once, inline, before cancelling. */
 export function CancelBookingSection({
   booking,
   onCancelled,
+  startConfirming = false,
 }: CancelBookingSectionProps) {
-  const [isConfirming, setIsConfirming] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(startConfirming);
   const cancelBooking = useCancelAsViewer(onCancelled);
 
   if (booking.is_cancelled) {

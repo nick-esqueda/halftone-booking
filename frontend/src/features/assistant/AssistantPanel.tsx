@@ -1,15 +1,15 @@
 import { useState, type FormEvent } from "react";
 
-import type {
-  AssistantHistoryEntry,
-  AssistantReply,
-  DraftBooking,
-} from "../../api/types";
+import type { AssistantHistoryEntry, AssistantReply } from "../../api/types";
 import { Button } from "../../components/ui/Button";
 import { ErrorBanner } from "../../components/ui/ErrorBanner";
 import { TEXT_INPUT_CLASS_NAME } from "../../components/ui/styles";
 import { useBookerNameContext } from "../identity/bookerNameStore";
-import { addExchange } from "./assistantConversation";
+import {
+  addExchange,
+  findReplyAction,
+  type ReplyTarget,
+} from "./assistantConversation";
 import { useAskAssistant } from "./useAskAssistant";
 
 // Matches the API's limit on one message.
@@ -17,16 +17,17 @@ const MAX_MESSAGE_LENGTH = 500;
 const PLACEHOLDER = 'e.g. "Camera A and a light Thursday after lunch"';
 
 interface AssistantPanelProps {
-  /** Opens the booking form filled in from a draft, for the person to review. */
-  onOpenDraft: (draft: DraftBooking) => void;
+  /** Opens a draft or a suggested change in a booking form, for review. */
+  onOpen: (target: ReplyTarget) => void;
 }
 
 /**
- * Ask for a booking in plain English. The assistant replies with a draft
- * (which opens the booking form), a question with times to pick, or a note.
- * Nothing is saved until the person confirms in the booking form.
+ * Ask for a booking, a change or a cancellation in plain English. The
+ * assistant replies with a suggestion (which opens the booking form), a
+ * question with times to pick, or a note. Nothing is saved or cancelled
+ * until the person confirms in the booking form.
  */
-export function AssistantPanel({ onOpenDraft }: AssistantPanelProps) {
+export function AssistantPanel({ onOpen }: AssistantPanelProps) {
   const { bookerName } = useBookerNameContext();
   const askAssistant = useAskAssistant();
   const [message, setMessage] = useState("");
@@ -37,8 +38,9 @@ export function AssistantPanel({ onOpenDraft }: AssistantPanelProps) {
     setHistory((earlier) => addExchange(earlier, question, reply.message));
     setLastReply(reply);
     setMessage("");
-    if (reply.draft) {
-      onOpenDraft(reply.draft);
+    const action = findReplyAction(reply);
+    if (action) {
+      onOpen(action.target);
     }
   };
 
@@ -94,9 +96,7 @@ export function AssistantPanel({ onOpenDraft }: AssistantPanelProps) {
         </Button>
       </form>
       {history.length > 0 && <Conversation history={history} />}
-      {lastReply && (
-        <ReplyActions reply={lastReply} onOpenDraft={onOpenDraft} />
-      )}
+      {lastReply && <ReplyActions reply={lastReply} onOpen={onOpen} />}
       {askAssistant.error && (
         <ErrorBanner title="The assistant couldn't answer.">
           <p className="text-ink-muted">{askAssistant.error.message}</p>
@@ -126,14 +126,16 @@ function Conversation({ history }: { history: AssistantHistoryEntry[] }) {
 
 interface ReplyActionsProps {
   reply: AssistantReply;
-  onOpenDraft: (draft: DraftBooking) => void;
+  onOpen: (target: ReplyTarget) => void;
 }
 
-/** What the person can do next: pick a suggested time, or reopen the draft. */
-function ReplyActions({ reply, onOpenDraft }: ReplyActionsProps) {
-  const draft = reply.draft;
-  if (draft) {
-    return <Button onClick={() => onOpenDraft(draft)}>Review the draft</Button>;
+/** What the person can do next: pick a suggested time, or reopen the suggestion. */
+function ReplyActions({ reply, onOpen }: ReplyActionsProps) {
+  const action = findReplyAction(reply);
+  if (action) {
+    return (
+      <Button onClick={() => onOpen(action.target)}>{action.label}</Button>
+    );
   }
   if (reply.options.length === 0) {
     return null;
@@ -145,7 +147,10 @@ function ReplyActions({ reply, onOpenDraft }: ReplyActionsProps) {
       className="flex flex-wrap gap-2"
     >
       {reply.options.map((option) => (
-        <Button key={option.label} onClick={() => onOpenDraft(option)}>
+        <Button
+          key={option.label}
+          onClick={() => onOpen({ kind: "draft", draft: option })}
+        >
           {option.label}
         </Button>
       ))}

@@ -1,6 +1,7 @@
 /** Query cache keys, in one place so invalidation can't miss one. */
 export const queryKeys = {
   config: ["config"] as const,
+  equipment: ["equipment"] as const,
   bookerNames: ["booker-names"] as const,
   availabilityAll: ["availability"] as const,
   availability: (

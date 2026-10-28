@@ -103,6 +103,15 @@ def test_the_message_is_checked_for_phrases() -> None:
     ]
 
 
+def test_a_change_is_graded_on_its_booking() -> None:
+    reply = draft_reply([1], at(29, 13), at(29, 18)).model_copy(
+        update={"kind": "change", "booking_id": 3}
+    )
+
+    assert grade_reply(reply, kind="change", booking_id=3) == []
+    assert grade_reply(reply, booking_id=1) == ["booking_id was 3"]
+
+
 def test_unknown_expect_fields_are_an_error() -> None:
     with pytest.raises(ValueError, match="kindd"):
         grade_reply(draft_reply([1], at(29, 13), at(29, 15)), kindd="draft")
