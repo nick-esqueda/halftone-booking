@@ -140,6 +140,21 @@ def check_options_equipment(expected: list[str], context: GradingContext) -> str
     return None
 
 
+def check_message_contains_any(
+    expected: list[str], context: GradingContext
+) -> str | None:
+    message = context.reply.message.lower()
+    if any(phrase.lower() in message for phrase in expected):
+        return None
+    return f"message mentions none of {expected}"
+
+
+def check_message_excludes(unwanted: list[str], context: GradingContext) -> str | None:
+    message = context.reply.message.lower()
+    found = [phrase for phrase in unwanted if phrase.lower() in message]
+    return f"message says {found}" if found else None
+
+
 # Each `expect` field and the check that grades it.
 CHECKS: dict[str, Check] = {
     "kind": check_kind,
@@ -153,6 +168,8 @@ CHECKS: dict[str, Check] = {
     "min_options": check_min_options,
     "options_date": check_options_date,
     "options_equipment": check_options_equipment,
+    "message_contains_any": check_message_contains_any,
+    "message_excludes": check_message_excludes,
 }
 
 

@@ -144,6 +144,26 @@
         {"role": "assistant", "text": "Which day and time do you need Lighting Kit 3?"}
       ],
       "expect": {"kind": "draft", "equipment": ["Lighting Kit 3"], "starts_at": "2026-10-29T16:00", "ends_at": "2026-10-29T18:00", "purpose_contains": "interview"}
+    },
+    {
+      "name": "asked to cancel a booking they saved from a draft",
+      "message": "Delete that booking",
+      "history": [
+        {"role": "user", "text": "book camera A today for 3pm"},
+        {"role": "assistant", "text": "Camera A is free today from 3:00 PM to 5:00 PM; I assumed 2 hours since no end time was given."}
+      ],
+      "bookings": [{"booker_name": "Someone", "equipment": ["Camera A"], "starts_at": "2026-10-27T15:00", "ends_at": "2026-10-27T17:00", "purpose": ""}],
+      "expect": {"kind": "message", "message_contains_any": ["schedule", "my bookings"], "message_excludes": ["nothing has been saved", "nothing was saved", "without checking"]}
+    },
+    {
+      "name": "asked to change a booking they saved from a draft",
+      "message": "Actually make that end at 6",
+      "history": [
+        {"role": "user", "text": "book camera A today for 3pm"},
+        {"role": "assistant", "text": "Camera A is free today from 3:00 PM to 5:00 PM; I assumed 2 hours since no end time was given."}
+      ],
+      "bookings": [{"booker_name": "Someone", "equipment": ["Camera A"], "starts_at": "2026-10-27T15:00", "ends_at": "2026-10-27T17:00", "purpose": ""}],
+      "expect": {"kind": ["message", "question"], "message_excludes": ["nothing has been saved", "nothing was saved", "without checking"]}
     }
   ]
 }

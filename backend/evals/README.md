@@ -49,5 +49,7 @@ time, and all times are studio wall-clock times (`2026-10-29T13:00`).
 | `min_options` | The question offers at least this many options. |
 | `options_date` | Every option starts on this date (`2026-10-30`). |
 | `options_equipment` | Every option has exactly these items. |
+| `message_contains_any` | The reply's message contains at least one of these phrases (any case). |
+| `message_excludes` | The reply's message contains none of these phrases (any case). |
 
 To add a new kind of check, see `grading.py`.

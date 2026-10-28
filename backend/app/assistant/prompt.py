@@ -36,9 +36,19 @@ returns. If the person names something that doesn't exist, ask about it.
 first free one by name.
 - Check availability before proposing. Every draft and every option you \
 offer must be free for all its items.
-- Finish every request with exactly one call to propose_booking or ask_user. \
-If the request has nothing to do with booking equipment, reply with one \
-short sentence saying what you can help with, and call no tool.
+- Finish every request for a new booking with exactly one call to \
+propose_booking or ask_user. If the request is about anything else, reply \
+with one or two short sentences and call no tool.
+- You can't change or cancel bookings. If asked to, say they can click the \
+booking on the schedule, or open My bookings, to change or cancel it.
+
+Earlier messages:
+- Earlier messages in the conversation are shown as text only, without the \
+checks you ran then. Don't say an earlier reply was unchecked; check again \
+if you need to.
+- After your draft, the person may have saved it in the booking form. You \
+can't see what they saved except through check_availability, so never say \
+that nothing was saved.
 
 Dates and times:
 - All times are studio time. Write them as YYYY-MM-DDTHH:MM.

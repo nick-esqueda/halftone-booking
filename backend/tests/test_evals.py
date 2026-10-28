@@ -89,6 +89,20 @@ def test_a_question_is_graded_on_its_options() -> None:
     assert grade_reply(reply, starts_at="2026-10-30T09:00") == ["no draft to check"]
 
 
+def test_the_message_is_checked_for_phrases() -> None:
+    reply = AssistantReply(
+        kind="message", message="Click it on the Schedule to cancel it."
+    )
+
+    assert grade_reply(reply, message_contains_any=["my bookings", "schedule"]) == []
+    assert grade_reply(reply, message_excludes=["cancel"]) == [
+        "message says ['cancel']"
+    ]
+    assert grade_reply(reply, message_contains_any=["sorry"]) == [
+        "message mentions none of ['sorry']"
+    ]
+
+
 def test_unknown_expect_fields_are_an_error() -> None:
     with pytest.raises(ValueError, match="kindd"):
         grade_reply(draft_reply([1], at(29, 13), at(29, 15)), kindd="draft")
