@@ -5,7 +5,7 @@ from collections import Counter
 from collections.abc import Callable
 
 from fastapi.testclient import TestClient
-from httpx import Response
+from httpx2 import Response
 from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session

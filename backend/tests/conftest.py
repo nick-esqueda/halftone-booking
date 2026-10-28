@@ -23,10 +23,18 @@ from fastapi.testclient import TestClient  # noqa: E402
 from sqlalchemy import text  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+from app.assistant.rate_limit import SlidingWindowRateLimiter  # noqa: E402
+from app.config import get_settings  # noqa: E402
 from app.db import get_engine, get_session_factory  # noqa: E402
-from app.dependencies import get_clock  # noqa: E402
+from app.dependencies import (  # noqa: E402
+    RATE_LIMIT_WINDOW_SECONDS,
+    get_assistant_rate_limiter,
+    get_clock,
+    get_llm_provider,
+)
 from app.main import app  # noqa: E402
 from app.seed import seed_equipment  # noqa: E402
+from tests.scripted_model import ScriptedModel  # noqa: E402
 
 STUDIO_ZONE = ZoneInfo("America/Chicago")
 
@@ -71,6 +79,30 @@ def clock() -> Iterator[FixedClock]:
     app.dependency_overrides[get_clock] = lambda: fixed_clock
     yield fixed_clock
     app.dependency_overrides.pop(get_clock, None)
+
+
+@pytest.fixture(autouse=True)
+def assistant_without_model() -> Iterator[None]:
+    """No test reaches a real model: the assistant is off unless a test scripts one.
+
+    Each test also gets its own rate limiter, so request counts don't carry over.
+    """
+    rate_limiter = SlidingWindowRateLimiter(
+        get_settings().assistant_requests_per_minute, RATE_LIMIT_WINDOW_SECONDS
+    )
+    app.dependency_overrides[get_llm_provider] = lambda: None
+    app.dependency_overrides[get_assistant_rate_limiter] = lambda: rate_limiter
+    yield
+    app.dependency_overrides.pop(get_llm_provider, None)
+    app.dependency_overrides.pop(get_assistant_rate_limiter, None)
+
+
+@pytest.fixture
+def model() -> Iterator[ScriptedModel]:
+    """Switch the assistant on, backed by a scripted model."""
+    scripted_model = ScriptedModel()
+    app.dependency_overrides[get_llm_provider] = lambda: scripted_model
+    yield scripted_model
 
 
 @pytest.fixture

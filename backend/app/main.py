@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
 from app.errors import register_error_handlers
-from app.routers import bookings, equipment, health
+from app.routers import assistant, bookings, equipment, health
 
 API_TITLE = "Halftone Booking API"
 
@@ -24,6 +24,7 @@ def create_app() -> FastAPI:
     app.include_router(equipment.router)
     app.include_router(bookings.router)
     app.include_router(health.router)
+    app.include_router(assistant.router)
     return app
 
 

@@ -44,11 +44,7 @@ class BookingService:
         return booking
 
     def create_booking(self, request: BookingRequest) -> Booking:
-        draft = self._build_draft(request)
-        self._validate(draft, original_times=None)
-        self.conflict_checker.raise_if_conflicts(
-            draft.equipment_ids, draft.starts_at, draft.ends_at
-        )
+        draft = self._check_new_booking(request)
 
         # Describe before adding rows: the equipment lookup would otherwise
         # flush them early, outside the conflict handling in `_commit`.
@@ -60,6 +56,14 @@ class BookingService:
 
         self._commit(draft, excluded_booking_id=None)
         return self.get_booking(booking.id)
+
+    def check_booking(self, request: BookingRequest) -> None:
+        """Run every check a new booking must pass, without saving anything.
+
+        Raises the same errors `create_booking` would, so a draft that passes
+        here will save unless someone books the slot in the meantime.
+        """
+        self._check_new_booking(request)
 
     def update_booking(self, booking_id: int, request: BookingUpdateRequest) -> Booking:
         booking = self._load_editable_booking(booking_id, request.version)
@@ -109,6 +113,14 @@ class BookingService:
     def list_history(self, booking_id: int) -> list[BookingEvent]:
         self.get_booking(booking_id)
         return self.bookings.list_events(booking_id)
+
+    def _check_new_booking(self, request: BookingRequest) -> BookingDraft:
+        draft = self._build_draft(request)
+        self._validate(draft, original_times=None)
+        self.conflict_checker.raise_if_conflicts(
+            draft.equipment_ids, draft.starts_at, draft.ends_at
+        )
+        return draft
 
     def _build_draft(self, request: BookingRequest) -> BookingDraft:
         return BookingDraft(

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Query
 
 from app.dependencies import (
     AvailabilityServiceDependency,
+    LLMProviderDependency,
     SessionDependency,
     SettingsDependency,
 )
@@ -45,7 +46,11 @@ def get_availability(
 
 
 @router.get("/config")
-def get_studio_config(settings: SettingsDependency) -> StudioConfigResponse:
+def get_studio_config(
+    settings: SettingsDependency, provider: LLMProviderDependency
+) -> StudioConfigResponse:
     return StudioConfigResponse(
-        timezone=settings.studio_timezone, time_step_minutes=settings.time_step_minutes
+        timezone=settings.studio_timezone,
+        time_step_minutes=settings.time_step_minutes,
+        assistant_enabled=provider is not None,
     )

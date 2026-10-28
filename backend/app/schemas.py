@@ -5,6 +5,7 @@ generated from the OpenAPI schema FastAPI builds from them.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -92,6 +93,9 @@ class BookingEventResponse(BaseModel):
 class StudioConfigResponse(BaseModel):
     timezone: str
     time_step_minutes: int
+    assistant_enabled: bool = Field(
+        description="False when no AI provider is configured; the UI hides the assistant."
+    )
 
 
 class ConflictResponse(BaseModel):
@@ -111,3 +115,40 @@ class ErrorResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
+
+
+class AssistantHistoryEntry(BaseModel):
+    """An earlier message in the same assistant conversation."""
+
+    role: Literal["user", "assistant"]
+    text: str = Field(max_length=2000)
+
+
+class AssistantRequest(BaseModel):
+    message: str = Field(min_length=1, max_length=500)
+    booker_name: str = ""
+    history: list[AssistantHistoryEntry] = Field(default=[], max_length=10)
+
+
+class DraftBooking(BaseModel):
+    """A booking the assistant suggests. Nothing is saved until the person books it."""
+
+    equipment_ids: list[int]
+    starts_at: datetime
+    ends_at: datetime
+    purpose: str
+
+
+class DraftOption(DraftBooking):
+    label: str = Field(
+        description='A readable time range, e.g. "Fri Oct 30, 9:00 AM – 1:00 PM".'
+    )
+
+
+class AssistantReply(BaseModel):
+    """Either a draft to review, a question (maybe with options to pick), or a plain message."""
+
+    kind: Literal["draft", "question", "message"]
+    message: str
+    draft: DraftBooking | None = None
+    options: list[DraftOption] = []
