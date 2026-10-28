@@ -109,6 +109,9 @@ jobs:
         with:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ env.PYTHON_VERSION }}
+          # The API still runs under `uv run` when the job ends, so uv's cache
+          # is in use and the post-job prune fails the job.
+          prune-cache: false
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}

@@ -1,20 +1,31 @@
+import type { Booking, DraftBooking } from "../../api/types";
 import { Dialog } from "../../components/ui/Dialog";
 import { LoadError } from "../../components/ui/LoadError";
+import {
+  buildDefaultsFromDraft,
+  type AssistantSuggestion,
+} from "../assistant/assistantConversation";
+import { CancelSummary, ChangeSummary } from "../assistant/SuggestionSummary";
 import { useStudioConfig } from "../studio/useStudioConfig";
 import { BookingForm } from "./BookingForm";
 import {
   buildBookingRequest,
   buildFormValuesFromBooking,
   buildNewFormValues,
+  type BookingFormValues,
   type NewBookingDefaults,
 } from "./bookingFormValues";
 import { BookingHistory } from "./BookingHistory";
 import { CancelBookingSection } from "./CancelBookingSection";
 import { useBooking, useCreateBooking, useUpdateBooking } from "./useBookings";
 
-export type BookingDialogRequest =
+/** `onCompleted` gets the booking once it's saved or cancelled from the form. */
+export type BookingDialogRequest = {
+  onCompleted?: (booking: Booking) => void;
+} & (
   | { kind: "create"; defaults: NewBookingDefaults }
-  | { kind: "edit"; bookingId: number };
+  | { kind: "edit"; bookingId: number; suggestion?: AssistantSuggestion }
+);
 
 interface BookingDialogProps {
   request: BookingDialogRequest | null;
@@ -26,21 +37,41 @@ export function BookingDialog({ request, onClose }: BookingDialogProps) {
   if (request === null) {
     return null;
   }
+  const onDone = (booking: Booking) => {
+    request.onCompleted?.(booking);
+    onClose();
+  };
   if (request.kind === "create") {
     return (
-      <CreateBookingDialog defaults={request.defaults} onClose={onClose} />
+      <CreateBookingDialog
+        defaults={request.defaults}
+        onDone={onDone}
+        onClose={onClose}
+      />
     );
   }
-  return <EditBookingDialog bookingId={request.bookingId} onClose={onClose} />;
+  return (
+    <EditBookingDialog
+      bookingId={request.bookingId}
+      suggestion={request.suggestion}
+      onDone={onDone}
+      onClose={onClose}
+    />
+  );
+}
+
+interface CreateBookingDialogProps {
+  defaults: NewBookingDefaults;
+  /** Runs with the saved booking, then closes the dialog. */
+  onDone: (booking: Booking) => void;
+  onClose: () => void;
 }
 
 function CreateBookingDialog({
   defaults,
+  onDone,
   onClose,
-}: {
-  defaults: NewBookingDefaults;
-  onClose: () => void;
-}) {
+}: CreateBookingDialogProps) {
   const { data: config } = useStudioConfig();
   const createBooking = useCreateBooking();
   if (config === undefined) {
@@ -57,7 +88,7 @@ function CreateBookingDialog({
         saveError={createBooking.error}
         onSave={(values) =>
           createBooking.mutate(buildBookingRequest(values), {
-            onSuccess: onClose,
+            onSuccess: onDone,
           })
         }
         onClose={onClose}
@@ -66,13 +97,20 @@ function CreateBookingDialog({
   );
 }
 
+interface EditBookingDialogProps {
+  bookingId: number;
+  suggestion?: AssistantSuggestion;
+  /** Runs with the saved or cancelled booking, then closes the dialog. */
+  onDone: (booking: Booking) => void;
+  onClose: () => void;
+}
+
 function EditBookingDialog({
   bookingId,
+  suggestion,
+  onDone,
   onClose,
-}: {
-  bookingId: number;
-  onClose: () => void;
-}) {
+}: EditBookingDialogProps) {
   const { data: config } = useStudioConfig();
   const bookingQuery = useBooking(bookingId);
   const booking = bookingQuery.data;
@@ -100,8 +138,14 @@ function EditBookingDialog({
       ...buildBookingRequest(values),
       version: booking.version,
     };
-    updateBooking.mutate(request, { onSuccess: onClose });
+    updateBooking.mutate(request, { onSuccess: onDone });
   };
+
+  const savedValues = buildFormValuesFromBooking(booking, config.timezone);
+  const initialValues =
+    suggestion?.kind === "change"
+      ? applySuggestedChange(savedValues, suggestion.draft, config.timezone)
+      : savedValues;
 
   return (
     <Dialog
@@ -109,9 +153,17 @@ function EditBookingDialog({
       title={`Booking by ${booking.booker_name}`}
       onClose={onClose}
     >
+      {suggestion?.kind === "change" && (
+        <ChangeSummary
+          booking={booking}
+          draft={suggestion.draft}
+          timezone={config.timezone}
+        />
+      )}
+      {suggestion?.kind === "cancel" && <CancelSummary />}
       <BookingForm
         key={booking.version}
-        initialValues={buildFormValuesFromBooking(booking, config.timezone)}
+        initialValues={initialValues}
         existingBooking={booking}
         timezone={config.timezone}
         timeStepMinutes={config.time_step_minutes}
@@ -120,8 +172,26 @@ function EditBookingDialog({
         onSave={saveChanges}
         onClose={onClose}
       />
-      <CancelBookingSection booking={booking} onCancelled={onClose} />
+      <CancelBookingSection
+        booking={booking}
+        onCancelled={onDone}
+        startConfirming={suggestion?.kind === "cancel"}
+      />
       <BookingHistory bookingId={booking.id} />
     </Dialog>
   );
+}
+
+/** The saved booking's form values with the assistant's suggestion applied. */
+function applySuggestedChange(
+  savedValues: BookingFormValues,
+  draft: DraftBooking,
+  timezone: string,
+): BookingFormValues {
+  const suggested = buildDefaultsFromDraft(
+    draft,
+    savedValues.bookerName,
+    timezone,
+  );
+  return { ...suggested, purpose: draft.purpose };
 }

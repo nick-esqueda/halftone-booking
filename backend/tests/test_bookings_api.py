@@ -156,4 +156,8 @@ def test_editing_a_booking_past_a_week_is_refused(client: TestClient) -> None:
 
 def test_studio_config(client: TestClient) -> None:
     config = client.get("/api/config").json()
-    assert config == {"timezone": "America/Chicago", "time_step_minutes": 15}
+    assert config == {
+        "timezone": "America/Chicago",
+        "time_step_minutes": 15,
+        "assistant_enabled": False,
+    }

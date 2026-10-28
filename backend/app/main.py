@@ -13,7 +13,7 @@ from app.observability.request_logging_middleware import (
     RequestLoggingMiddleware,
 )
 from app.observability.setup import configure_logging
-from app.routers import bookings, equipment, health
+from app.routers import assistant, bookings, equipment, health
 
 API_TITLE = "Halftone Booking API"
 
@@ -43,6 +43,7 @@ def create_app() -> FastAPI:
     app.include_router(equipment.router)
     app.include_router(bookings.router)
     app.include_router(health.router)
+    app.include_router(assistant.router)
 
     log_startup(settings)
     return app

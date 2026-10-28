@@ -19,7 +19,7 @@ THURSDAY = {"starts_at": "2026-10-29T00:00", "ends_at": "2026-10-30T00:00"}
 
 
 def get_rows_by_name(
-    client: TestClient, **params: object
+    client: TestClient, **params: str | int
 ) -> dict[str, dict[str, object]]:
     response = client.get("/api/availability", params={**THURSDAY, **params})
     assert response.status_code == 200, response.text

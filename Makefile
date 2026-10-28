@@ -20,7 +20,7 @@ BOOKING_LOG_SINKS ?= console,file
 LOCAL_LOG_SETTINGS = BOOKING_LOG_LEVEL=$(BOOKING_LOG_LEVEL) BOOKING_LOG_SINKS=$(BOOKING_LOG_SINKS) BOOKING_LOG_DIR=../logs
 
 .DEFAULT_GOAL := help
-.PHONY: help up down logs tail-logs install migrate seed dev-native api web format lint test test-backend test-frontend e2e openapi check
+.PHONY: help up down logs tail-logs install migrate seed dev-native api web format lint test test-backend test-frontend e2e evals openapi check
 
 help: ## List every command
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-15s %s\n", $$1, $$2}'
@@ -80,6 +80,9 @@ test: test-backend test-frontend ## Run all unit and API tests
 
 e2e: ## Run the Playwright smoke test (API must be running)
 	$(FRONTEND) npm run e2e
+
+evals: ## Run the assistant eval set against the real model (costs money; needs ANTHROPIC_API_KEY)
+	$(BACKEND) EVAL_DATABASE_URL=$(TEST_DATABASE_URL) $(UV) python -m evals.run_evals
 
 openapi: ## Regenerate the frontend's API types from the backend
 	$(BACKEND) PYTHONPATH=. $(UV) python scripts/export_openapi.py ../frontend/openapi.json

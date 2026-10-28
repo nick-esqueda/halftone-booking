@@ -2,6 +2,7 @@ import { TZDate } from "@date-fns/tz";
 import { addWeeks, startOfDay } from "date-fns";
 import { useState } from "react";
 
+import type { Booking } from "../api/types";
 import {
   CURRENT_TIME_REFRESH_MS,
   DAY_VIEW_END_HOUR,
@@ -10,6 +11,11 @@ import {
   DEFAULT_BOOKING_START_HOUR,
   DAYS_PER_WEEK,
 } from "../config/constants";
+import { AssistantPanel } from "../features/assistant/AssistantPanel";
+import {
+  buildDefaultsFromDraft,
+  type ReplyTarget,
+} from "../features/assistant/assistantConversation";
 import { isInCategory } from "../features/availability/categories";
 import { CategoryFilter } from "../features/availability/CategoryFilter";
 import { DayTabs } from "../features/availability/DayTabs";
@@ -31,6 +37,7 @@ import {
   formatLongDay,
   getWeekStart,
   pickDefaultStartTime,
+  toStudioDate,
 } from "../features/studio/studioTime";
 import { useCurrentTime } from "../features/studio/useCurrentTime";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
@@ -59,17 +66,22 @@ export function SchedulePage() {
     <Schedule
       timezone={config.timezone}
       timeStepMinutes={config.time_step_minutes}
+      isAssistantEnabled={config.assistant_enabled}
     />
   );
+}
+
+interface ScheduleProps {
+  timezone: string;
+  timeStepMinutes: number;
+  isAssistantEnabled: boolean;
 }
 
 function Schedule({
   timezone,
   timeStepMinutes,
-}: {
-  timezone: string;
-  timeStepMinutes: number;
-}) {
+  isAssistantEnabled,
+}: ScheduleProps) {
   const now = useCurrentTime(CURRENT_TIME_REFRESH_MS);
   const today = new TZDate(now, timezone);
   const todayStart = new TZDate(startOfDay(today), timezone);
@@ -102,12 +114,28 @@ function Schedule({
     setDialogRequest({ kind: "create", defaults });
   };
 
+  // Show the suggestion's day behind the form, so the person sees what's around it.
+  const openAssistantReply = (
+    target: ReplyTarget,
+    onCompleted: (booking: Booking) => void,
+  ) => {
+    const startsAt =
+      target.kind === "draft" ? target.draft.starts_at : target.startsAt;
+    const studioStart = toStudioDate(startsAt, timezone);
+    setSelectedDay(new TZDate(startOfDay(studioStart), timezone));
+    const request = buildDialogRequest(target, bookerName, timezone);
+    setDialogRequest({ ...request, onCompleted });
+  };
+
   const showWeekOffset = (weekOffset: number) => {
     setSelectedDay(new TZDate(addWeeks(selectedDay, weekOffset), timezone));
   };
 
   return (
     <div className="space-y-4">
+      {isAssistantEnabled && (
+        <AssistantPanel timezone={timezone} onOpen={openAssistantReply} />
+      )}
       <DayTabs
         days={weekDays}
         selectedDay={selectedDay}
@@ -178,6 +206,20 @@ function Schedule({
       />
     </div>
   );
+}
+
+/** The booking dialog that shows an assistant suggestion for review. */
+function buildDialogRequest(
+  target: ReplyTarget,
+  bookerName: string,
+  timezone: string,
+): BookingDialogRequest {
+  if (target.kind === "draft") {
+    const defaults = buildDefaultsFromDraft(target.draft, bookerName, timezone);
+    return { kind: "create", defaults };
+  }
+  const { bookingId, suggestion } = target;
+  return { kind: "edit", bookingId, suggestion };
 }
 
 const VISIBLE_HOURS_TEXT = `${formatHourLabel(DAY_VIEW_START_HOUR)}–${formatHourLabel(DAY_VIEW_END_HOUR)}`;

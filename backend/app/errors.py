@@ -71,11 +71,23 @@ class BookingConflictError(BookingError):
         self.conflicts = conflicts
 
 
+class AssistantUnavailableError(BookingError):
+    """The AI assistant is switched off, or its provider can't be reached."""
+
+    code = "assistant_unavailable"
+
+
+class RateLimitedError(BookingError):
+    code = "rate_limited"
+
+
 HTTP_STATUS_BY_ERROR: dict[type[BookingError], int] = {
     InvalidBookingError: 422,
     NotFoundError: 404,
     StaleVersionError: 409,
     BookingConflictError: 409,
+    AssistantUnavailableError: 503,
+    RateLimitedError: 429,
 }
 DEFAULT_ERROR_STATUS = 400
 
