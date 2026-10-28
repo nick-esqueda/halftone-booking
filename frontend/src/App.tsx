@@ -54,6 +54,7 @@ function TopBar() {
             value={bookerName}
             onChange={setBookerName}
             className="w-40"
+            hintPlacement="overlay"
           />
           <ThemeToggle />
         </div>
