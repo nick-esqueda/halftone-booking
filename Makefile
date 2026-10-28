@@ -14,20 +14,28 @@ DB_PORT ?= 5432
 TEST_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT)/booking_test
 LOCAL_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT)/booking
 
+# Local logging matches Docker: DEBUG, to the console and to ./logs/api.log.
+BOOKING_LOG_LEVEL ?= DEBUG
+BOOKING_LOG_SINKS ?= console,file
+LOCAL_LOG_SETTINGS = BOOKING_LOG_LEVEL=$(BOOKING_LOG_LEVEL) BOOKING_LOG_SINKS=$(BOOKING_LOG_SINKS) BOOKING_LOG_DIR=../logs
+
 .DEFAULT_GOAL := help
-.PHONY: help up down logs install migrate seed dev-native api web format lint test test-backend test-frontend e2e evals openapi check
+.PHONY: help up down logs tail-logs install migrate seed dev-native api web format lint test test-backend test-frontend e2e evals openapi check
 
 help: ## List every command
 	@grep -E '^[a-z0-9-]+:.*## ' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "} {printf "  %-15s %s\n", $$1, $$2}'
 
 up: ## Start db, API and web in Docker (http://localhost:5173)
-	docker compose up --build
+	HOST_UID=$$(id -u) HOST_GID=$$(id -g) docker compose up --build
 
 down: ## Stop the Docker stack
 	docker compose down
 
 logs: ## Follow logs from the Docker stack
 	docker compose logs -f
+
+tail-logs: ## Follow the API's JSON log file (./logs/api.log)
+	tail -F logs/api.log
 
 install: ## Install backend and frontend dependencies
 	$(BACKEND) uv sync
@@ -37,14 +45,14 @@ migrate: ## Apply database migrations to the local database
 	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(UV) alembic upgrade head
 
 seed: ## Add the studio's equipment to the local database
-	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(UV) python -m app.seed
+	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(LOCAL_LOG_SETTINGS) $(UV) python -m app.seed
 
 dev-native: ## Postgres in Docker; run `make api` and `make web` in two terminals
 	docker compose up -d db
 	@echo "Now run 'make api' and 'make web' in separate terminals."
 
 api: migrate seed ## Run the API on this machine with reload
-	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(UV) uvicorn app.main:app --reload
+	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(LOCAL_LOG_SETTINGS) $(UV) uvicorn app.main:app --reload --reload-dir app
 
 web: ## Run the web app on this machine
 	$(FRONTEND) npm run dev

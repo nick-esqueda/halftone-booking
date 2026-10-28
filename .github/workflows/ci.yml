@@ -146,7 +146,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build and start db, API and web
-        run: docker compose up --build --detach --wait --wait-timeout 180
+        # Same as `make up`: the API runs as the runner's user so it can write ./logs.
+        run: HOST_UID=$(id -u) HOST_GID=$(id -g) docker compose up --build --detach --wait --wait-timeout 180
+      - name: Check the API writes its log file
+        run: test -s logs/api.log
       - name: Check the API and the web app's proxy to it
         run: |
           curl -sf localhost:8000/api/equipment | grep -q "Camera A"

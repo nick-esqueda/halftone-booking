@@ -2,7 +2,8 @@
 
 Services raise these errors; they never build HTTP responses themselves.
 `register_error_handlers` turns each one into the shared JSON error shape:
-`{"code": ..., "message": ..., "conflicts": [...]}`.
+`{"code": ..., "message": ..., "conflicts": [...], "request_id": ...}`.
+The request ID lets someone match an error they saw to the API's logs.
 
 To add a new error: subclass `BookingError`, give it a `code`, and add the
 class to `HTTP_STATUS_BY_ERROR` with the status it should return.
@@ -13,6 +14,7 @@ show a readable message.
 """
 
 import logging
+from collections.abc import Mapping
 from dataclasses import asdict, dataclass
 from datetime import datetime
 
@@ -20,6 +22,9 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from sqlalchemy.exc import InterfaceError, OperationalError
+
+from app.observability.request_context import get_request_id
+from app.observability.request_logging_middleware import REQUEST_ID_HEADER
 
 logger = logging.getLogger(__name__)
 
@@ -87,16 +92,26 @@ HTTP_STATUS_BY_ERROR: dict[type[BookingError], int] = {
 DEFAULT_ERROR_STATUS = 400
 
 
+def add_request_id(body: Mapping[str, object]) -> dict[str, object]:
+    return {**body, "request_id": get_request_id()}
+
+
 def build_error_body(error: BookingError) -> dict[str, object]:
     """Build the JSON body every API error shares."""
     conflicts = getattr(error, "conflicts", [])
     conflict_dicts = [asdict(conflict) for conflict in conflicts]
-    return {"code": error.code, "message": error.message, "conflicts": conflict_dicts}
+    body = {"code": error.code, "message": error.message, "conflicts": conflict_dicts}
+    return add_request_id(body)
 
 
 async def handle_booking_error(request: Request, error: Exception) -> JSONResponse:
     assert isinstance(error, BookingError)
     status_code = HTTP_STATUS_BY_ERROR.get(type(error), DEFAULT_ERROR_STATUS)
+
+    # The message is left out: it can name the person holding the equipment.
+    fields = {"error_code": error.code, "status_code": status_code}
+    logger.warning("Request rejected: %s", error.code, extra=fields)
+
     body = build_error_body(error)
     return JSONResponse(status_code=status_code, content=_make_json_safe(body))
 
@@ -119,8 +134,10 @@ async def handle_request_validation_error(
     first_problem = error.errors()[0]
     field_path = ".".join(str(part) for part in first_problem["loc"])
     message = f"{field_path}: {first_problem['msg']}"
+    logger.warning("Invalid request: %s", message, extra={"field": field_path})
+
     body = {"code": "invalid_request", "message": message, "conflicts": []}
-    return JSONResponse(status_code=422, content=body)
+    return JSONResponse(status_code=422, content=add_request_id(body))
 
 
 # Errors that mean the database can't be reached right now. To treat another
@@ -140,13 +157,21 @@ INTERNAL_ERROR_BODY = {
 
 
 async def handle_unavailable_error(request: Request, error: Exception) -> JSONResponse:
-    logger.error("Database unavailable during %s: %s", request.url.path, error)
-    return JSONResponse(status_code=503, content=SERVICE_UNAVAILABLE_BODY)
+    error_text = f"{type(error).__name__}: {error}"
+    fields = {"path": request.url.path, "error": error_text}
+    logger.error("Database unavailable", extra=fields)
+    body = add_request_id(SERVICE_UNAVAILABLE_BODY)
+    return JSONResponse(status_code=503, content=body)
 
 
 async def handle_unexpected_error(request: Request, error: Exception) -> JSONResponse:
-    logger.exception("Unexpected error during %s", request.url.path, exc_info=error)
-    return JSONResponse(status_code=500, content=INTERNAL_ERROR_BODY)
+    """Runs outside the request middleware, so it sets the ID header itself."""
+    fields = {"path": request.url.path}
+    logger.exception("Unexpected error", exc_info=error, extra=fields)
+    request_id = get_request_id()
+    body = add_request_id(INTERNAL_ERROR_BODY)
+    headers = {REQUEST_ID_HEADER: request_id}
+    return JSONResponse(status_code=500, content=body, headers=headers)
 
 
 def register_error_handlers(app: FastAPI) -> None:

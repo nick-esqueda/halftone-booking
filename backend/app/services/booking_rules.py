@@ -13,6 +13,7 @@ Conflicts with other bookings are not checked here; the booking service and
 the database constraint handle those.
 """
 
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
@@ -22,6 +23,8 @@ from app.config import Settings
 from app.errors import InvalidBookingError
 from app.models import Equipment
 from app.studio_time import is_on_time_step
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -193,4 +196,7 @@ def validate_booking(draft: BookingDraft, context: BookingCheckContext) -> None:
     for check in BOOKING_CHECKS:
         error = check(draft, context)
         if error is not None:
+            fields = {"rule": check.__name__, "error_code": error.code}
+            logger.debug("Booking rule failed", extra=fields)
             raise error
+    logger.debug("Booking rules passed", extra={"rule_count": len(BOOKING_CHECKS)})

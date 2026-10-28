@@ -1,5 +1,6 @@
 """Finding and reporting clashes with existing bookings."""
 
+import logging
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -9,6 +10,8 @@ from app.errors import BookingConflictError, Conflict
 from app.models import NO_OVERLAP_CONSTRAINT_NAME, BookingItem
 from app.repositories.booking_repository import BookingRepository, build_period
 from app.services.booking_times import describe_span, get_item_span
+
+logger = logging.getLogger(__name__)
 
 
 def build_conflict(item: BookingItem, studio_zone: ZoneInfo) -> Conflict:
@@ -58,5 +61,16 @@ class ConflictChecker:
         conflicting_items = self.repository.find_conflicting_items(
             equipment_ids, period, excluded_booking_id
         )
+        self._log_result(equipment_ids, conflicting_items)
         if conflicting_items:
             raise build_conflict_error(conflicting_items, self.studio_zone)
+
+    def _log_result(
+        self, equipment_ids: list[int], conflicting_items: list[BookingItem]
+    ) -> None:
+        conflicting_ids = sorted({item.booking_id for item in conflicting_items})
+        fields = {
+            "equipment_ids": equipment_ids,
+            "conflicting_booking_ids": conflicting_ids,
+        }
+        logger.debug("Conflict check finished", extra=fields)

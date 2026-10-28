@@ -64,6 +64,25 @@ class Settings(BaseSettings):
     # Length of a booking when the request gives only a start ("after lunch").
     assistant_default_booking_hours: int = 2
 
+    # Logging (see app/observability). Levels: TRACE, DEBUG, INFO, WARNING, ERROR.
+    log_level: str = "INFO"
+
+    # Per-area level overrides, e.g. "app.services=TRACE,sqlalchemy.engine=INFO".
+    log_levels: str = ""
+
+    # Where logs go: comma-separated names from app/observability/sinks.py
+    # (console, file, stdout-json). Blank means nowhere.
+    log_sinks: str = "console"
+
+    # Folder for the `file` sink, and when to rotate its file.
+    log_dir: str = "logs"
+    log_file_max_mb: int = 10
+    log_file_backups: int = 5
+
+    # Requests and queries slower than this are flagged in the logs.
+    slow_request_ms: int = 1000
+    slow_query_ms: int = 200
+
 
 @lru_cache
 def get_settings() -> Settings:

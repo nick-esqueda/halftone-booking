@@ -16,6 +16,11 @@ frontend/.vite/
 frontend/playwright-report/
 frontend/test-results/
 
+# Local logs: the folder stays (logs/.gitkeep), its contents don't.
+/logs/*
+!/logs/.gitkeep
+/backend/logs/
+
 # Local settings
 .env
 .DS_Store
