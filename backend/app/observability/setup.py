@@ -15,6 +15,8 @@ from app.observability.sinks import build_sink_handlers
 # Set on the handlers we add, so a second call knows which ones to replace.
 OWN_HANDLER_MARKER = "is_booking_sink"
 
+logger = logging.getLogger(__name__)
+
 # uvicorn's own loggers: we send them through our sinks. Its access log is
 # switched off because our middleware writes a richer line per request.
 UVICORN_LOGGERS = ("uvicorn", "uvicorn.error")
@@ -36,11 +38,13 @@ def configure_logging(settings: Settings) -> None:
     root_level = parse_level(settings.log_level)
     root_logger = logging.getLogger()
     root_logger.setLevel(root_level)
-    replace_own_handlers(root_logger, build_sink_handlers(settings))
+    sink_setup = build_sink_handlers(settings)
+    replace_own_handlers(root_logger, sink_setup.handlers)
 
     route_uvicorn_logs()
     set_sql_level(root_level)
     apply_level_overrides(parse_level_overrides(settings.log_levels))
+    report_sink_failures(sink_setup.failures)
 
 
 def replace_own_handlers(
@@ -84,6 +88,12 @@ def parse_level_overrides(overrides_setting: str) -> dict[str, int]:
             raise ValueError(f"Log level override {entry!r} must look like name=LEVEL")
         levels_by_logger[logger_name.strip()] = parse_level(level_name)
     return levels_by_logger
+
+
+def report_sink_failures(failures: dict[str, str]) -> None:
+    for sink_name, reason in failures.items():
+        fields = {"sink": sink_name, "reason": reason}
+        logger.warning("Log sink unavailable, continuing without it", extra=fields)
 
 
 def apply_level_overrides(levels_by_logger: dict[str, int]) -> None:

@@ -13,6 +13,7 @@ set `BOOKING_LOG_SINKS=stdout-json,<new name>`.
 import logging
 import sys
 from collections.abc import Callable
+from dataclasses import dataclass, field
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -72,14 +73,31 @@ def parse_sink_names(sinks_setting: str) -> list[str]:
     return [name for name in names if name]
 
 
-def build_sink_handlers(settings: Settings) -> list[logging.Handler]:
+@dataclass
+class SinkSetup:
+    """The handlers that started, and why any others couldn't."""
+
+    handlers: list[logging.Handler] = field(default_factory=list)
+    failures: dict[str, str] = field(default_factory=dict)
+
+
+def build_sink_handlers(settings: Settings) -> SinkSetup:
+    """Build each named sink. A sink that can't open (say, a log folder the
+    process can't write to) is skipped and reported, so a logging problem
+    never stops the API from starting."""
     sink_names = parse_sink_names(settings.log_sinks)
     unknown_names = [name for name in sink_names if name not in SINK_FACTORIES]
     if unknown_names:
         known_names = ", ".join(SINK_FACTORIES)
         raise ValueError(f"Unknown log sinks {unknown_names}; use: {known_names}")
 
-    handlers = [SINK_FACTORIES[name](settings) for name in sink_names]
-    for handler in handlers:
+    setup = SinkSetup()
+    for name in sink_names:
+        try:
+            handler = SINK_FACTORIES[name](settings)
+        except OSError as error:
+            setup.failures[name] = f"{type(error).__name__}: {error}"
+            continue
         handler.addFilter(RedactionFilter())
-    return handlers
+        setup.handlers.append(handler)
+    return setup

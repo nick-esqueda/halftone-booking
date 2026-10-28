@@ -106,7 +106,7 @@ def test_unknown_sink_is_rejected() -> None:
 
 def test_file_sink_writes_json_lines(tmp_path: Path) -> None:
     settings = Settings(log_sinks="file", log_dir=str(tmp_path))
-    [handler] = build_sink_handlers(settings)
+    [handler] = build_sink_handlers(settings).handlers
 
     handler.handle(build_record(booking_id=42))
     handler.close()
@@ -142,3 +142,14 @@ def test_sql_statements_show_only_when_tracing(
 ) -> None:
     configure_logging(Settings(log_sinks="", log_level=log_level))
     assert logging.getLogger(SQL_LOGGER).level == expected_sql_level
+
+
+def test_sink_that_cannot_open_is_skipped_and_reported(tmp_path: Path) -> None:
+    blocking_file = tmp_path / "not-a-folder"
+    blocking_file.write_text("")
+    settings = Settings(log_sinks="console,file", log_dir=str(blocking_file))
+
+    setup = build_sink_handlers(settings)
+
+    assert len(setup.handlers) == 1
+    assert "file" in setup.failures
