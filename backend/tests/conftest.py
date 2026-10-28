@@ -15,6 +15,8 @@ DEFAULT_TEST_DATABASE_URL = (
 )
 TEST_DATABASE_URL = os.environ.get("TEST_DATABASE_URL", DEFAULT_TEST_DATABASE_URL)
 os.environ["BOOKING_DATABASE_URL"] = TEST_DATABASE_URL
+# pytest's caplog captures log records itself; sinks would only add noise.
+os.environ["BOOKING_LOG_SINKS"] = ""
 
 import pytest  # noqa: E402
 from alembic import command  # noqa: E402

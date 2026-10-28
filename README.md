@@ -37,6 +37,14 @@ CI runs all of the above on every pull request, checks that the generated API ty
 - **Business rules live in the API.** The UI only gives quick hints; the API checks everything again.
 - **API types.** After changing the API, run `make openapi` to regenerate `frontend/src/api/schema.d.ts`.
 
+## Logging
+
+- **Where.** The API logs to the console and, as JSON lines, to `logs/api.log` in the repo root (git-ignored, rotated at 10 MB). `make logs` follows the console; `make tail-logs` follows the file.
+- **Request IDs.** Every response has an `X-Request-ID` header, every error body has a matching `request_id`, and every log line carries it. To see everything one request did: `jq 'select(.request_id == "<id>")' logs/api.log`.
+- **Levels.** `BOOKING_LOG_LEVEL` is `DEBUG` locally and `INFO` by default. `TRACE` adds every SQL statement. Tune one area with `BOOKING_LOG_LEVELS=app.services=TRACE`.
+- **Destinations.** `BOOKING_LOG_SINKS` picks them by name: `console`, `file`, `stdout-json`. To send logs somewhere new, add a sink in `backend/app/observability/sinks.py`.
+- **Privacy.** Booker names and purposes appear only at DEBUG and below; passwords, tokens and keys are masked on every sink.
+
 ## Configuration
 
 Copy `.env.example` to `.env` to change defaults. API settings use the `BOOKING_` prefix (see `backend/app/config.py`).

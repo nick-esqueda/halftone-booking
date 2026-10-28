@@ -1,5 +1,6 @@
 """Which items are free, and who holds the others, over a time range."""
 
+import logging
 from collections import defaultdict
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -21,6 +22,8 @@ from app.services.booking_times import get_item_span
 from app.studio_time import convert_to_studio_time, convert_to_utc
 
 MAX_AVAILABILITY_RANGE_DAYS = 62
+
+logger = logging.getLogger(__name__)
 
 
 class AvailabilityService:
@@ -46,6 +49,13 @@ class AvailabilityService:
             item for item in busy_items if item.booking_id != excluded_booking_id
         ]
         items_by_equipment = self._group_by_equipment(visible_items)
+        fields = {
+            "starts_at": range_start.isoformat(),
+            "ends_at": range_end.isoformat(),
+            "busy_item_count": len(visible_items),
+            "excluded_booking_id": excluded_booking_id,
+        }
+        logger.debug("Availability looked up", extra=fields)
 
         equipment_rows = [
             self._build_equipment_row(equipment, items_by_equipment[equipment.id])

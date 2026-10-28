@@ -7,13 +7,16 @@ from sqlalchemy import Engine, create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.config import get_settings
+from app.observability.sql_timing import SlowQueryLogger
 
 
 @lru_cache
 def get_engine() -> Engine:
     """Return the shared database engine, creating it on first use."""
     settings = get_settings()
-    return create_engine(settings.database_url, pool_pre_ping=True)
+    engine = create_engine(settings.database_url, pool_pre_ping=True)
+    SlowQueryLogger(settings.slow_query_ms).register(engine)
+    return engine
 
 
 @lru_cache
