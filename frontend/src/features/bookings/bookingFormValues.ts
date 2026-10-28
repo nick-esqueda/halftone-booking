@@ -21,6 +21,7 @@ export interface BookingFormValues {
 
 export interface NewBookingDefaults {
   bookerName: string;
+  purpose?: string;
   startDate: string;
   startTime: string;
   endDate: string;
@@ -31,7 +32,7 @@ export interface NewBookingDefaults {
 export function buildNewFormValues(
   defaults: NewBookingDefaults,
 ): BookingFormValues {
-  return { ...defaults, purpose: "" };
+  return { ...defaults, purpose: defaults.purpose ?? "" };
 }
 
 export function buildFormValuesFromBooking(

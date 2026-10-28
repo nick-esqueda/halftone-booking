@@ -840,10 +840,177 @@
           }
         }
       }
+    },
+    "/api/assistant/draft": {
+      "post": {
+        "tags": [
+          "assistant"
+        ],
+        "summary": "Draft Booking",
+        "description": "Turn a plain-English request into a draft or a question. Never saves.",
+        "operationId": "draft_booking_api_assistant_draft_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistantRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssistantReply"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Unprocessable Entity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "AssistantHistoryEntry": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role"
+          },
+          "text": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Text"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "text"
+        ],
+        "title": "AssistantHistoryEntry",
+        "description": "An earlier message in the same assistant conversation."
+      },
+      "AssistantReply": {
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draft",
+              "question",
+              "message"
+            ],
+            "title": "Kind"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "draft": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftBooking"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/DraftOption"
+            },
+            "type": "array",
+            "title": "Options",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "kind",
+          "message"
+        ],
+        "title": "AssistantReply",
+        "description": "Either a draft to review, a question (maybe with options to pick), or a plain message."
+      },
+      "AssistantRequest": {
+        "properties": {
+          "message": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Message"
+          },
+          "booker_name": {
+            "type": "string",
+            "title": "Booker Name",
+            "default": ""
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/AssistantHistoryEntry"
+            },
+            "type": "array",
+            "maxItems": 10,
+            "title": "History",
+            "default": []
+          }
+        },
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "title": "AssistantRequest"
+      },
       "AvailabilityResponse": {
         "properties": {
           "starts_at": {
@@ -1149,6 +1316,79 @@
         ],
         "title": "ConflictResponse"
       },
+      "DraftBooking": {
+        "properties": {
+          "equipment_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Equipment Ids"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Starts At"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ends At"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_ids",
+          "starts_at",
+          "ends_at",
+          "purpose"
+        ],
+        "title": "DraftBooking",
+        "description": "A booking the assistant suggests. Nothing is saved until the person books it."
+      },
+      "DraftOption": {
+        "properties": {
+          "equipment_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array",
+            "title": "Equipment Ids"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Starts At"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Ends At"
+          },
+          "purpose": {
+            "type": "string",
+            "title": "Purpose"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "A readable time range, e.g. \"Fri Oct 30, 9:00 AM \u2013 1:00 PM\"."
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_ids",
+          "starts_at",
+          "ends_at",
+          "purpose",
+          "label"
+        ],
+        "title": "DraftOption"
+      },
       "EquipmentAvailabilityResponse": {
         "properties": {
           "equipment": {
@@ -1250,12 +1490,18 @@
           "time_step_minutes": {
             "type": "integer",
             "title": "Time Step Minutes"
+          },
+          "assistant_enabled": {
+            "type": "boolean",
+            "title": "Assistant Enabled",
+            "description": "False when no AI provider is configured; the UI hides the assistant."
           }
         },
         "type": "object",
         "required": [
           "timezone",
-          "time_step_minutes"
+          "time_step_minutes",
+          "assistant_enabled"
         ],
         "title": "StudioConfigResponse"
       }

@@ -165,10 +165,77 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/assistant/draft": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Draft Booking
+         * @description Turn a plain-English request into a draft or a question. Never saves.
+         */
+        post: operations["draft_booking_api_assistant_draft_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * AssistantHistoryEntry
+         * @description An earlier message in the same assistant conversation.
+         */
+        AssistantHistoryEntry: {
+            /**
+             * Role
+             * @enum {string}
+             */
+            role: "user" | "assistant";
+            /** Text */
+            text: string;
+        };
+        /**
+         * AssistantReply
+         * @description Either a draft to review, a question (maybe with options to pick), or a plain message.
+         */
+        AssistantReply: {
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "draft" | "question" | "message";
+            /** Message */
+            message: string;
+            draft?: components["schemas"]["DraftBooking"] | null;
+            /**
+             * Options
+             * @default []
+             */
+            options: components["schemas"]["DraftOption"][];
+        };
+        /** AssistantRequest */
+        AssistantRequest: {
+            /** Message */
+            message: string;
+            /**
+             * Booker Name
+             * @default
+             */
+            booker_name: string;
+            /**
+             * History
+             * @default []
+             */
+            history: components["schemas"]["AssistantHistoryEntry"][];
+        };
         /** AvailabilityResponse */
         AvailabilityResponse: {
             /**
@@ -326,6 +393,48 @@ export interface components {
              */
             ends_at: string;
         };
+        /**
+         * DraftBooking
+         * @description A booking the assistant suggests. Nothing is saved until the person books it.
+         */
+        DraftBooking: {
+            /** Equipment Ids */
+            equipment_ids: number[];
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Purpose */
+            purpose: string;
+        };
+        /** DraftOption */
+        DraftOption: {
+            /** Equipment Ids */
+            equipment_ids: number[];
+            /**
+             * Starts At
+             * Format: date-time
+             */
+            starts_at: string;
+            /**
+             * Ends At
+             * Format: date-time
+             */
+            ends_at: string;
+            /** Purpose */
+            purpose: string;
+            /**
+             * Label
+             * @description A readable time range, e.g. "Fri Oct 30, 9:00 AM – 1:00 PM".
+             */
+            label: string;
+        };
         /** EquipmentAvailabilityResponse */
         EquipmentAvailabilityResponse: {
             equipment: components["schemas"]["EquipmentResponse"];
@@ -368,6 +477,11 @@ export interface components {
             timezone: string;
             /** Time Step Minutes */
             time_step_minutes: number;
+            /**
+             * Assistant Enabled
+             * @description False when no AI provider is configured; the UI hides the assistant.
+             */
+            assistant_enabled: boolean;
         };
     };
     responses: never;
@@ -1020,6 +1134,66 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HealthResponse"];
+                };
+            };
+            /** @description Internal Server Error */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    draft_booking_api_assistant_draft_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AssistantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssistantReply"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Too Many Requests */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
                 };
             };
             /** @description Internal Server Error */

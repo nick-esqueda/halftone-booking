@@ -10,6 +10,9 @@ import {
   DEFAULT_BOOKING_START_HOUR,
   DAYS_PER_WEEK,
 } from "../config/constants";
+import type { DraftBooking } from "../api/types";
+import { AssistantPanel } from "../features/assistant/AssistantPanel";
+import { buildDefaultsFromDraft } from "../features/assistant/assistantConversation";
 import { isInCategory } from "../features/availability/categories";
 import { CategoryFilter } from "../features/availability/CategoryFilter";
 import { DayTabs } from "../features/availability/DayTabs";
@@ -31,6 +34,7 @@ import {
   formatLongDay,
   getWeekStart,
   pickDefaultStartTime,
+  toStudioDate,
 } from "../features/studio/studioTime";
 import { useCurrentTime } from "../features/studio/useCurrentTime";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
@@ -59,17 +63,22 @@ export function SchedulePage() {
     <Schedule
       timezone={config.timezone}
       timeStepMinutes={config.time_step_minutes}
+      isAssistantEnabled={config.assistant_enabled}
     />
   );
+}
+
+interface ScheduleProps {
+  timezone: string;
+  timeStepMinutes: number;
+  isAssistantEnabled: boolean;
 }
 
 function Schedule({
   timezone,
   timeStepMinutes,
-}: {
-  timezone: string;
-  timeStepMinutes: number;
-}) {
+  isAssistantEnabled,
+}: ScheduleProps) {
   const now = useCurrentTime(CURRENT_TIME_REFRESH_MS);
   const today = new TZDate(now, timezone);
   const todayStart = new TZDate(startOfDay(today), timezone);
@@ -102,12 +111,21 @@ function Schedule({
     setDialogRequest({ kind: "create", defaults });
   };
 
+  // Show the draft's day behind the form, so the person sees what's around it.
+  const openDraft = (draft: DraftBooking) => {
+    const draftStart = toStudioDate(draft.starts_at, timezone);
+    setSelectedDay(new TZDate(startOfDay(draftStart), timezone));
+    const defaults = buildDefaultsFromDraft(draft, bookerName, timezone);
+    setDialogRequest({ kind: "create", defaults });
+  };
+
   const showWeekOffset = (weekOffset: number) => {
     setSelectedDay(new TZDate(addWeeks(selectedDay, weekOffset), timezone));
   };
 
   return (
     <div className="space-y-4">
+      {isAssistantEnabled && <AssistantPanel onOpenDraft={openDraft} />}
       <DayTabs
         days={weekDays}
         selectedDay={selectedDay}
