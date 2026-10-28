@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.schemas import AssistantReply, DraftBooking, DraftOption
 from evals.grading import CHECKS, EquipmentInfo, GradingContext, grade
 from evals.run_evals import load_cases, run_case
-from tests.scripted_model import ScriptedModel, call_tools, say
+from tests.scripted_model import ScriptedModel, call_tools, provider_down, say
 
 ZONE = ZoneInfo("America/Chicago")
 EQUIPMENT = {
@@ -125,3 +125,22 @@ def test_a_case_runs_end_to_end_with_its_bookings(model: ScriptedModel) -> None:
     assert model.outcomes_sent_back()[0].is_error
     assert not result.passed
     assert "kind was 'message', expected draft" in result.problems
+
+
+def test_a_provider_error_is_tried_again(model: ScriptedModel) -> None:
+    [case] = load_cases("off topic")
+    model.will_reply(provider_down(), say("I can only help book equipment."))
+
+    result = run_case(case, model, get_settings())
+
+    assert result.passed
+    assert len(model.requests) == 2
+
+
+def test_a_provider_error_twice_fails_the_case(model: ScriptedModel) -> None:
+    [case] = load_cases("off topic")
+    model.will_reply(provider_down(), provider_down())
+
+    result = run_case(case, model, get_settings())
+
+    assert result.problems == ["provider error: Couldn't reach the provider."]

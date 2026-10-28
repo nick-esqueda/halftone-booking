@@ -51,6 +51,9 @@ ALL_TABLES = "booking_events, booking_items, bookings, equipment"
 STUDIO_ZONE = ZoneInfo("America/Chicago")
 EVAL_NOW = datetime(2026, 10, 27, 10, 30, tzinfo=STUDIO_ZONE)
 DEFAULT_PASS_RATE = 0.9
+# A timeout or dropped connection says nothing about the model's choices, so
+# a case that hits one is tried again before it counts as failed.
+PROVIDER_ATTEMPTS = 2
 
 
 class FixedClock:
@@ -123,14 +126,28 @@ def run_case(
 
         started = time.monotonic()
         try:
-            reply = service.reply(build_request(case))
+            reply = ask_with_retry(service, build_request(case))
         except LLMUnavailableError as error:
-            return CaseResult(case["name"], [f"provider error: {error}"], None, 0)
+            seconds = time.monotonic() - started
+            problems = [f"provider error: {error}"]
+            return CaseResult(case["name"], problems, None, seconds)
         seconds = time.monotonic() - started
 
         grading_context = GradingContext(reply, load_equipment(session), STUDIO_ZONE)
         problems = grade(case["expect"], grading_context)
     return CaseResult(case["name"], problems, reply, seconds)
+
+
+def ask_with_retry(
+    service: AssistantService, request: AssistantRequest
+) -> AssistantReply:
+    """The reply, trying again if the provider can't be reached the first time."""
+    for _ in range(PROVIDER_ATTEMPTS - 1):
+        try:
+            return service.reply(request)
+        except LLMUnavailableError as error:
+            print(f"  provider error, trying again: {error}", flush=True)
+    return service.reply(request)
 
 
 def describe_reply(reply: AssistantReply | None) -> str:
