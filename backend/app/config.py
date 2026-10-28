@@ -49,8 +49,9 @@ class Settings(BaseSettings):
     anthropic_api_key: SecretStr | None = Field(
         default=None, validation_alias="ANTHROPIC_API_KEY"
     )
-    # How hard the model thinks: "low", "medium" or "high". Higher is slower.
-    llm_effort: LLMEffort = "medium"
+    # How hard the model thinks: "low", "medium" or "high". Higher is slower;
+    # "low" keeps replies quick for these short booking requests.
+    llm_effort: LLMEffort = "low"
     llm_max_output_tokens: int = 4000
 
     # Limits on one assistant request, so a confused model can't run up cost.
