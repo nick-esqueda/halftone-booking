@@ -114,12 +114,13 @@ function Schedule({
   };
 
   // Show the suggestion's day behind the form, so the person sees what's around it.
-  const openAssistantReply = (target: ReplyTarget) => {
+  const openAssistantReply = (target: ReplyTarget, onCompleted: () => void) => {
     const startsAt =
       target.kind === "draft" ? target.draft.starts_at : target.startsAt;
     const studioStart = toStudioDate(startsAt, timezone);
     setSelectedDay(new TZDate(startOfDay(studioStart), timezone));
-    setDialogRequest(buildDialogRequest(target, bookerName, timezone));
+    const request = buildDialogRequest(target, bookerName, timezone);
+    setDialogRequest({ ...request, onCompleted });
   };
 
   const showWeekOffset = (weekOffset: number) => {

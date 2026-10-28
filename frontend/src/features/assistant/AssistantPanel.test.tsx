@@ -74,6 +74,7 @@ function installApi(assistantReply: () => Response, assistantEnabled = true) {
     "GET /api/availability": () => respond(200, AVAILABILITY),
     "GET /api/booker-names": () => respond(200, []),
     "POST /api/assistant/draft": assistantReply,
+    "POST /api/bookings": () => respond(201, { id: 1 }),
   });
 }
 
@@ -118,6 +119,24 @@ describe("AssistantPanel", () => {
         history: [],
       },
     ]);
+  });
+
+  it("drops the review button once the draft is booked", async () => {
+    const api = installApi(() => respond(200, DRAFT_REPLY));
+    renderWithProviders(<SchedulePage />);
+
+    await ask("Camera A Thursday 1 to 3 for an interview");
+    const dialog = await screen.findByRole("dialog", { name: "New booking" });
+    await userEvent.type(within(dialog).getByLabelText("Booked by"), "Sam K");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Book 1 item" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Booked.");
+    expect(api.requests("POST /api/bookings")).toHaveLength(1);
+    expect(
+      screen.queryByRole("button", { name: "Review the draft" }),
+    ).not.toBeInTheDocument();
   });
 
   it("offers suggested times and opens the one picked", async () => {

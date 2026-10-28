@@ -7,6 +7,7 @@ import { TEXT_INPUT_CLASS_NAME } from "../../components/ui/styles";
 import { useBookerNameContext } from "../identity/bookerNameStore";
 import {
   addExchange,
+  describeConfirmed,
   findReplyAction,
   type ReplyTarget,
 } from "./assistantConversation";
@@ -17,8 +18,11 @@ const MAX_MESSAGE_LENGTH = 500;
 const PLACEHOLDER = 'e.g. "Camera A and a light Thursday after lunch"';
 
 interface AssistantPanelProps {
-  /** Opens a draft or a suggested change in a booking form, for review. */
-  onOpen: (target: ReplyTarget) => void;
+  /**
+   * Opens a draft or a suggested change in a booking form, for review.
+   * `onConfirmed` runs once the person saves or cancels it there.
+   */
+  onOpen: (target: ReplyTarget, onConfirmed: () => void) => void;
 }
 
 /**
@@ -33,14 +37,24 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
   const [message, setMessage] = useState("");
   const [history, setHistory] = useState<AssistantHistoryEntry[]>([]);
   const [lastReply, setLastReply] = useState<AssistantReply | null>(null);
+  const [confirmedNote, setConfirmedNote] = useState<string | null>(null);
+
+  // Once confirmed, the suggestion is done: drop its button and say so.
+  const openTarget = (target: ReplyTarget) => {
+    onOpen(target, () => {
+      setLastReply(null);
+      setConfirmedNote(describeConfirmed(target));
+    });
+  };
 
   const showReply = (question: string, reply: AssistantReply) => {
     setHistory((earlier) => addExchange(earlier, question, reply.message));
     setLastReply(reply);
+    setConfirmedNote(null);
     setMessage("");
     const action = findReplyAction(reply);
     if (action) {
-      onOpen(action.target);
+      openTarget(action.target);
     }
   };
 
@@ -59,6 +73,7 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
   const startOver = () => {
     setHistory([]);
     setLastReply(null);
+    setConfirmedNote(null);
     askAssistant.reset();
   };
 
@@ -96,7 +111,12 @@ export function AssistantPanel({ onOpen }: AssistantPanelProps) {
         </Button>
       </form>
       {history.length > 0 && <Conversation history={history} />}
-      {lastReply && <ReplyActions reply={lastReply} onOpen={onOpen} />}
+      {lastReply && <ReplyActions reply={lastReply} onOpen={openTarget} />}
+      {confirmedNote && (
+        <p role="status" className="text-sm text-ink-muted">
+          {confirmedNote}
+        </p>
+      )}
       {askAssistant.error && (
         <ErrorBanner title="The assistant couldn't answer.">
           <p className="text-ink-muted">{askAssistant.error.message}</p>

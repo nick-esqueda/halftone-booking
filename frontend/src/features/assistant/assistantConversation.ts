@@ -106,3 +106,18 @@ const REPLY_ACTIONS: Partial<
 export function findReplyAction(reply: AssistantReply): ReplyAction | null {
   return REPLY_ACTIONS[reply.kind]?.(reply) ?? null;
 }
+
+type ConfirmedAction = "draft" | AssistantSuggestion["kind"];
+
+// What the panel says once the person confirms a suggestion in the form.
+const CONFIRMED_NOTES: Record<ConfirmedAction, string> = {
+  draft: "Booked.",
+  change: "Changes saved.",
+  cancel: "Booking cancelled.",
+};
+
+/** The note shown after the person confirms what `target` opened. */
+export function describeConfirmed(target: ReplyTarget): string {
+  const action = target.kind === "draft" ? "draft" : target.suggestion.kind;
+  return CONFIRMED_NOTES[action];
+}

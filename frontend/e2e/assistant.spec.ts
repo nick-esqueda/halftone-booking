@@ -144,6 +144,10 @@ test("a suggested change and cancellation are confirmed, then saved", async ({
     name: `${BOOKER} · 4:00 PM–7:00 PM · Assistant test`,
   });
   await expect(block).toBeVisible();
+  await expect(page.getByRole("status")).toHaveText("Changes saved.");
+  await expect(
+    page.getByRole("button", { name: "Review the change" }),
+  ).toBeHidden();
 
   await askAssistant(page, "Cancel it", {
     kind: "cancel",
@@ -156,4 +160,5 @@ test("a suggested change and cancellation are confirmed, then saved", async ({
   await dialog.getByRole("button", { name: "Cancel booking" }).click();
   await expect(dialog).toBeHidden();
   await expect(block).toBeHidden();
+  await expect(page.getByRole("status")).toHaveText("Booking cancelled.");
 });

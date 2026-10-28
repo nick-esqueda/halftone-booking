@@ -19,9 +19,11 @@ import { BookingHistory } from "./BookingHistory";
 import { CancelBookingSection } from "./CancelBookingSection";
 import { useBooking, useCreateBooking, useUpdateBooking } from "./useBookings";
 
-export type BookingDialogRequest =
+/** `onCompleted` runs after the booking is saved or cancelled from the form. */
+export type BookingDialogRequest = { onCompleted?: () => void } & (
   | { kind: "create"; defaults: NewBookingDefaults }
-  | { kind: "edit"; bookingId: number; suggestion?: AssistantSuggestion };
+  | { kind: "edit"; bookingId: number; suggestion?: AssistantSuggestion }
+);
 
 interface BookingDialogProps {
   request: BookingDialogRequest | null;
@@ -33,27 +35,41 @@ export function BookingDialog({ request, onClose }: BookingDialogProps) {
   if (request === null) {
     return null;
   }
+  const onDone = () => {
+    request.onCompleted?.();
+    onClose();
+  };
   if (request.kind === "create") {
     return (
-      <CreateBookingDialog defaults={request.defaults} onClose={onClose} />
+      <CreateBookingDialog
+        defaults={request.defaults}
+        onDone={onDone}
+        onClose={onClose}
+      />
     );
   }
   return (
     <EditBookingDialog
       bookingId={request.bookingId}
       suggestion={request.suggestion}
+      onDone={onDone}
       onClose={onClose}
     />
   );
 }
 
+interface CreateBookingDialogProps {
+  defaults: NewBookingDefaults;
+  /** Runs once the booking is saved, then closes the dialog. */
+  onDone: () => void;
+  onClose: () => void;
+}
+
 function CreateBookingDialog({
   defaults,
+  onDone,
   onClose,
-}: {
-  defaults: NewBookingDefaults;
-  onClose: () => void;
-}) {
+}: CreateBookingDialogProps) {
   const { data: config } = useStudioConfig();
   const createBooking = useCreateBooking();
   if (config === undefined) {
@@ -70,7 +86,7 @@ function CreateBookingDialog({
         saveError={createBooking.error}
         onSave={(values) =>
           createBooking.mutate(buildBookingRequest(values), {
-            onSuccess: onClose,
+            onSuccess: onDone,
           })
         }
         onClose={onClose}
@@ -82,12 +98,15 @@ function CreateBookingDialog({
 interface EditBookingDialogProps {
   bookingId: number;
   suggestion?: AssistantSuggestion;
+  /** Runs once the booking is saved or cancelled, then closes the dialog. */
+  onDone: () => void;
   onClose: () => void;
 }
 
 function EditBookingDialog({
   bookingId,
   suggestion,
+  onDone,
   onClose,
 }: EditBookingDialogProps) {
   const { data: config } = useStudioConfig();
@@ -117,7 +136,7 @@ function EditBookingDialog({
       ...buildBookingRequest(values),
       version: booking.version,
     };
-    updateBooking.mutate(request, { onSuccess: onClose });
+    updateBooking.mutate(request, { onSuccess: onDone });
   };
 
   const savedValues = buildFormValuesFromBooking(booking, config.timezone);
@@ -153,7 +172,7 @@ function EditBookingDialog({
       />
       <CancelBookingSection
         booking={booking}
-        onCancelled={onClose}
+        onCancelled={onDone}
         startConfirming={suggestion?.kind === "cancel"}
       />
       <BookingHistory bookingId={booking.id} />

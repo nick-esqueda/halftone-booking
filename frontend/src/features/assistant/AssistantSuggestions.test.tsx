@@ -147,6 +147,12 @@ describe("assistant suggestions for existing bookings", () => {
         },
       ]),
     );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Changes saved.",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Review the change" }),
+    ).not.toBeInTheDocument();
   });
 
   it("opens the booking asking to confirm a suggested cancellation", async () => {
@@ -175,6 +181,12 @@ describe("assistant suggestions for existing bookings", () => {
         { actor_name: "Sam K", version: 3 },
       ]),
     );
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Booking cancelled.",
+    );
+    expect(
+      screen.queryByRole("button", { name: "Review the cancellation" }),
+    ).not.toBeInTheDocument();
   });
 
   it("can reopen the suggestion from the conversation", async () => {
