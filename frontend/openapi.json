@@ -946,6 +946,8 @@
             "type": "string",
             "enum": [
               "draft",
+              "change",
+              "cancel",
               "question",
               "message"
             ],
@@ -972,6 +974,27 @@
             "type": "array",
             "title": "Options",
             "default": []
+          },
+          "booking_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Booking Id"
+          },
+          "original": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/DraftBooking"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -980,7 +1003,7 @@
           "message"
         ],
         "title": "AssistantReply",
-        "description": "Either a draft to review, a question (maybe with options to pick), or a plain message."
+        "description": "What the assistant suggests. Nothing is saved until the person confirms.\n\n- draft: a new booking (`draft`) to review in the booking form.\n- change: new values (`draft`) for an existing booking (`booking_id`,\n  currently `original`), to review in that booking's form.\n- cancel: an existing booking (`booking_id`, `original`) to confirm cancelling.\n- question: a question, maybe with `options` to pick from.\n- message: a plain message."
       },
       "AssistantRequest": {
         "properties": {

@@ -111,6 +111,7 @@ def test_tool_results_go_back_to_the_model(
     assert camera["is_free"] is False
     assert camera["busy"] == [
         {
+            "booking_id": 1,
             "starts_at": "2026-10-29T13:00",
             "ends_at": "2026-10-29T15:00",
             "booked_by": "Ana",
@@ -132,6 +133,8 @@ def test_a_draft_for_a_taken_time_goes_back_to_the_model_as_an_error(
         "message": "Camera A is taken at 1 PM.",
         "draft": None,
         "options": [],
+        "booking_id": None,
+        "original": None,
     }
     [outcome] = model.outcomes_sent_back()
     assert outcome.is_error
@@ -263,6 +266,8 @@ def test_a_question_without_options(client: TestClient, model: ScriptedModel) ->
         "message": "Which day?",
         "draft": None,
         "options": [],
+        "booking_id": None,
+        "original": None,
     }
 
 

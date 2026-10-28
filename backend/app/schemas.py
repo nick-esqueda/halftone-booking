@@ -148,9 +148,19 @@ class DraftOption(DraftBooking):
 
 
 class AssistantReply(BaseModel):
-    """Either a draft to review, a question (maybe with options to pick), or a plain message."""
+    """What the assistant suggests. Nothing is saved until the person confirms.
 
-    kind: Literal["draft", "question", "message"]
+    - draft: a new booking (`draft`) to review in the booking form.
+    - change: new values (`draft`) for an existing booking (`booking_id`,
+      currently `original`), to review in that booking's form.
+    - cancel: an existing booking (`booking_id`, `original`) to confirm cancelling.
+    - question: a question, maybe with `options` to pick from.
+    - message: a plain message.
+    """
+
+    kind: Literal["draft", "change", "cancel", "question", "message"]
     message: str
     draft: DraftBooking | None = None
     options: list[DraftOption] = []
+    booking_id: int | None = None
+    original: DraftBooking | None = None

@@ -84,13 +84,7 @@ class BookingService:
 
     def update_booking(self, booking_id: int, request: BookingUpdateRequest) -> Booking:
         booking = self._load_editable_booking(booking_id, request.version)
-        original_span = get_booking_span(booking)
-        draft = self._build_draft(request)
-        original_times = OriginalTimes(original_span.starts_at, original_span.ends_at)
-        self._validate(draft, original_times)
-        self.conflict_checker.raise_if_conflicts(
-            draft.equipment_ids, draft.starts_at, draft.ends_at, booking.id
-        )
+        draft = self._check_update(booking, request)
 
         summary = self._describe(draft)
         booking.booker_name = draft.booker_name
@@ -105,11 +99,8 @@ class BookingService:
 
     def cancel_booking(self, booking_id: int, request: BookingCancelRequest) -> Booking:
         booking = self._load_editable_booking(booking_id, request.version)
+        self._raise_if_finished(booking)
         span = get_booking_span(booking)
-        if span.ends_at <= self.clock.now():
-            raise InvalidBookingError(
-                "booking_finished", "Finished bookings can't be cancelled."
-            )
 
         now = self.clock.now()
         for item in booking.active_items:
@@ -124,6 +115,22 @@ class BookingService:
         fields = {"booking_id": booking.id, "version": booking.version}
         logger.info("Booking cancelled", extra=fields)
         return self.get_booking(booking.id)
+
+    def check_update(self, booking_id: int, request: BookingRequest) -> Booking:
+        """Run every check an edit must pass, without saving; return the booking.
+
+        Raises the same errors `update_booking` would (apart from a stale
+        version, which only matters when saving).
+        """
+        booking = self._require_active(self.get_booking(booking_id))
+        self._check_update(booking, request)
+        return booking
+
+    def check_cancel(self, booking_id: int) -> Booking:
+        """Raise if the booking couldn't be cancelled now; return it otherwise."""
+        booking = self._require_active(self.get_booking(booking_id))
+        self._raise_if_finished(booking)
+        return booking
 
     def list_bookings_for(self, booker_name: str) -> list[Booking]:
         bookings = self.bookings.list_by_booker(normalize_name(booker_name))
@@ -144,6 +151,22 @@ class BookingService:
             draft.equipment_ids, draft.starts_at, draft.ends_at
         )
         return draft
+
+    def _check_update(self, booking: Booking, request: BookingRequest) -> BookingDraft:
+        original_span = get_booking_span(booking)
+        draft = self._build_draft(request)
+        original_times = OriginalTimes(original_span.starts_at, original_span.ends_at)
+        self._validate(draft, original_times)
+        self.conflict_checker.raise_if_conflicts(
+            draft.equipment_ids, draft.starts_at, draft.ends_at, booking.id
+        )
+        return draft
+
+    def _raise_if_finished(self, booking: Booking) -> None:
+        if get_booking_span(booking).ends_at <= self.clock.now():
+            raise InvalidBookingError(
+                "booking_finished", "Finished bookings can't be cancelled."
+            )
 
     def _build_draft(self, request: BookingRequest) -> BookingDraft:
         draft = BookingDraft(
@@ -183,6 +206,9 @@ class BookingService:
             raise StaleVersionError(
                 "Someone else changed this booking since you opened it."
             )
+        return self._require_active(booking)
+
+    def _require_active(self, booking: Booking) -> Booking:
         if booking.is_cancelled:
             raise InvalidBookingError(
                 "booking_cancelled", "This booking is already cancelled."
