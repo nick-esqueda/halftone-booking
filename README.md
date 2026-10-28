@@ -12,7 +12,7 @@ Equipment booking for the Halftone studio: see who has which camera, light or ro
 make up        # db, API and web in Docker, with hot reload
 ```
 
-Open http://localhost:5173. The API (http://localhost:8000/docs) runs migrations and seeds the equipment list on start.
+Open http://localhost:5173. The API (http://localhost:8000/docs) runs migrations and seeds the equipment list on start. A database with no bookings also gets random demo bookings for the next two months; set `BOOKING_SEED_DEMO_BOOKINGS=false` in `.env` to start empty.
 
 Prefer running the API and web app directly? `make dev-native`, then `make api` and `make web` in two terminals. You need [uv](https://docs.astral.sh/uv/) and Node 22.
 

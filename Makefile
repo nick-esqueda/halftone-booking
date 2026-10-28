@@ -17,6 +17,9 @@ LOCAL_DATABASE_URL ?= postgresql+psycopg://postgres:postgres@localhost:$(DB_PORT
 # Local logging matches Docker: DEBUG, to the console and to ./logs/api.log.
 BOOKING_LOG_LEVEL ?= DEBUG
 BOOKING_LOG_SINKS ?= console,file
+# Local databases get random demo bookings when they have none, as in Docker.
+BOOKING_SEED_DEMO_BOOKINGS ?= true
+
 LOCAL_LOG_SETTINGS = BOOKING_LOG_LEVEL=$(BOOKING_LOG_LEVEL) BOOKING_LOG_SINKS=$(BOOKING_LOG_SINKS) BOOKING_LOG_DIR=../logs
 
 .DEFAULT_GOAL := help
@@ -44,8 +47,8 @@ install: ## Install backend and frontend dependencies
 migrate: ## Apply database migrations to the local database
 	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(UV) alembic upgrade head
 
-seed: ## Add the studio's equipment to the local database
-	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) $(LOCAL_LOG_SETTINGS) $(UV) python -m app.seed
+seed: ## Add the studio's equipment (and demo bookings, if it has none) to the local database
+	$(BACKEND) BOOKING_DATABASE_URL=$(LOCAL_DATABASE_URL) BOOKING_SEED_DEMO_BOOKINGS=$(BOOKING_SEED_DEMO_BOOKINGS) $(LOCAL_LOG_SETTINGS) $(UV) python -m app.seed
 
 dev-native: ## Postgres in Docker; run `make api` and `make web` in two terminals
 	docker compose up -d db
