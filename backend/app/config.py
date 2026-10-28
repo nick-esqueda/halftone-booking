@@ -37,6 +37,12 @@ class Settings(BaseSettings):
     max_booker_name_length: int = 80
     max_purpose_length: int = 200
 
+    # Fill an empty database with random demo bookings when the seed script
+    # runs. Off by default; Docker Compose switches it on for local use.
+    seed_demo_bookings: bool = False
+    # Demo bookings are spread from today up to this many days out.
+    demo_booking_days_ahead: int = 60
+
     # Browser origins allowed to call the API during local development.
     cors_allowed_origins: list[str] = ["http://localhost:5173"]
 

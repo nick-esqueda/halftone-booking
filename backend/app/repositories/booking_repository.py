@@ -81,6 +81,10 @@ class BookingRepository:
         query = _select_bookings_with_items().where(name_matches).order_by(Booking.id)
         return list(self.session.scalars(query))
 
+    def has_any_bookings(self) -> bool:
+        query = select(Booking.id).limit(1)
+        return self.session.scalar(query) is not None
+
     def list_booker_names(self) -> list[str]:
         query = select(Booking.booker_name).distinct().order_by(Booking.booker_name)
         return list(self.session.scalars(query))

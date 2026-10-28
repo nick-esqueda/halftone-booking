@@ -1,19 +1,24 @@
 """Adds the studio's equipment to an empty database.
 
 Run with `uv run python -m app.seed`. Running it again adds only what's
-missing, so it is safe to repeat.
+missing, so it is safe to repeat. With `BOOKING_SEED_DEMO_BOOKINGS=true` it
+also fills a database that has no bookings with random demo bookings (see
+app/demo_bookings.py).
 """
 
 import logging
+import random
 
 from sqlalchemy.orm import Session
 
-from app.config import get_settings
+from app.config import Settings, get_settings
 from app.db import get_session_factory
+from app.demo_bookings import seed_demo_bookings
 from app.models import Equipment
 from app.observability.request_context import bind_request_id
 from app.observability.setup import configure_logging
 from app.repositories.equipment_repository import EquipmentRepository
+from app.studio_time import SystemClock
 
 # The request ID on every line the seed script logs.
 SEED_REQUEST_ID = "seed"
@@ -66,10 +71,21 @@ def seed_equipment(session: Session) -> int:
 
 
 def run_seed() -> None:
-    configure_logging(get_settings())
+    settings = get_settings()
+    configure_logging(settings)
     with bind_request_id(SEED_REQUEST_ID), get_session_factory()() as session:
         added_count = seed_equipment(session)
         logger.info("Seeded equipment", extra={"added_count": added_count})
+
+        if settings.seed_demo_bookings:
+            run_demo_booking_seed(session, settings)
+
+
+def run_demo_booking_seed(session: Session, settings: Settings) -> None:
+    # Unseeded, so each fresh database gets a different demo schedule.
+    rng = random.Random()
+    added_count = seed_demo_bookings(session, settings, SystemClock(), rng)
+    logger.info("Seeded demo bookings", extra={"added_count": added_count})
 
 
 if __name__ == "__main__":
