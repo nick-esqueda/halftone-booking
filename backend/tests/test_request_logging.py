@@ -6,6 +6,7 @@ import uuid
 import pytest
 from fastapi.testclient import TestClient
 
+from app.observability.levels import TRACE
 from tests.helpers import build_booking, create_booking, create_booking_ok
 
 CALLER_REQUEST_ID = "web-3f9a1c2e-8b4d"
@@ -73,14 +74,22 @@ def test_finished_request_is_logged_with_status_and_duration(
     assert isinstance(vars(record)["duration_ms"], int)
 
 
-def test_health_checks_are_logged_at_debug_only(
+def test_health_checks_are_logged_at_trace_only(
+    client: TestClient, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(TRACE)
+    client.get("/api/health")
+
+    [record] = find_records(caplog, "GET /api/health 200")
+    assert record.levelno == TRACE
+
+
+def test_health_checks_stay_out_of_debug_logs(
     client: TestClient, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.DEBUG)
     client.get("/api/health")
-
-    [record] = find_records(caplog, "GET /api/health 200")
-    assert record.levelno == logging.DEBUG
+    assert find_records(caplog, "GET /api/health 200") == []
 
 
 def test_created_booking_is_logged_without_personal_details_at_info(
