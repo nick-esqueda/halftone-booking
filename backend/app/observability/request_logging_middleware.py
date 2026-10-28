@@ -16,6 +16,7 @@ import uuid
 from starlette.datastructures import MutableHeaders
 from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
+from app.observability.levels import TRACE
 from app.observability.request_context import set_request_id
 
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -24,8 +25,8 @@ REQUEST_ID_HEADER_KEY = REQUEST_ID_HEADER.lower().encode("latin-1")
 # Callers can't push long or odd strings into our logs through the header.
 VALID_REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9-]{8,64}$")
 
-# Health checks poll every few seconds; log them at DEBUG so they don't
-# drown out the INFO log.
+# Health checks poll every few seconds; log them at TRACE so they don't
+# drown out the DEBUG log.
 QUIET_PATHS = frozenset({"/api/health"})
 
 # The status we report when the app raises before sending a response.
@@ -48,7 +49,7 @@ def choose_access_level(path: str, duration_ms: int, slow_request_ms: int) -> in
     if duration_ms > slow_request_ms:
         return logging.WARNING
     if path in QUIET_PATHS:
-        return logging.DEBUG
+        return TRACE
     return logging.INFO
 
 
