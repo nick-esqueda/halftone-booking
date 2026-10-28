@@ -1,16 +1,19 @@
 """What the assistant's model is told.
 
 The system prompt never changes between requests, so the provider can cache
-it. Anything that changes (the date, the person's name) goes in the context
-message at the start of each conversation instead.
+it. Anything that changes (the date, the person's name, the equipment list)
+goes in the context message at the start of each conversation instead.
 
 To change what a house phrase means, edit `HOUSE_PHRASES`.
 """
 
+import json
+from collections.abc import Sequence
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 from app.config import Settings
+from app.models import Equipment
 
 # How the studio uses everyday time phrases, in studio time.
 HOUSE_PHRASES: dict[str, str] = {
@@ -31,8 +34,8 @@ the person then reviews and confirms. You never save or cancel anything \
 yourself, so never say that you have.
 
 How to work:
-- Look up equipment with list_equipment before using any id. Only use ids it \
-returns. If the person names something that doesn't exist, ask about it.
+- The context message lists every bookable item. Only use ids from that \
+list. If the person names something that isn't in it, ask about it.
 - "A camera" or "a light" means any one free item in that category; pick the \
 first free one by name.
 - Check availability before proposing. Every draft and every option you \
@@ -106,7 +109,12 @@ def build_system_prompt(settings: Settings) -> str:
     )
 
 
-def build_context_message(now: datetime, settings: Settings, booker_name: str) -> str:
+def build_context_message(
+    now: datetime,
+    settings: Settings,
+    booker_name: str,
+    equipment: Sequence[Equipment],
+) -> str:
     """Facts about this request, sent before the person's own words."""
     studio_now = now.astimezone(ZoneInfo(settings.studio_timezone))
     name_text = booker_name or "not given"
@@ -115,5 +123,20 @@ def build_context_message(now: datetime, settings: Settings, booker_name: str) -
         f"- Now: {studio_now:{CONTEXT_TIME_FORMAT}} studio time "
         f"({settings.studio_timezone})\n"
         f"- Bookings start and end on {settings.time_step_minutes}-minute steps\n"
-        f"- The person's name: {name_text}"
+        f"- The person's name: {name_text}\n"
+        f"- Bookable equipment: {format_equipment(equipment)}"
     )
+
+
+def format_equipment(equipment: Sequence[Equipment]) -> str:
+    """The items as compact JSON: about 20 tokens each."""
+    items = [
+        {
+            "id": item.id,
+            "name": item.name,
+            "category": item.category,
+            "description": item.description,
+        }
+        for item in equipment
+    ]
+    return json.dumps(items, separators=(",", ":"))

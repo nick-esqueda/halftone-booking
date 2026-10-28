@@ -30,7 +30,7 @@ from app.assistant.tools import TOOL_SPECS
 from app.config import Settings
 
 TOOL_USE = BetaToolUseBlock(
-    type="tool_use", id="toolu_1", name="list_equipment", input={}
+    type="tool_use", id="toolu_1", name="find_bookings", input={}
 )
 
 
@@ -55,7 +55,7 @@ def test_tool_calls_are_read_from_the_reply() -> None:
 
     assert turn.text == "Checking."
     assert turn.tool_calls == [
-        ToolCall(call_id="toolu_1", name="list_equipment", arguments={})
+        ToolCall(call_id="toolu_1", name="find_bookings", arguments={})
     ]
     assert turn.stop_reason == StopReason.TOOL_CALLS
 

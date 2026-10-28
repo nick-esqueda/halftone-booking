@@ -122,28 +122,8 @@ TIME_PROPERTY = {
 EQUIPMENT_IDS_PROPERTY = {
     "type": "array",
     "items": {"type": "integer"},
-    "description": "Equipment ids from list_equipment.",
+    "description": "Equipment ids from the equipment list.",
 }
-
-
-class ListEquipmentTool:
-    spec = ToolSpec(
-        name="list_equipment",
-        description="List every bookable item with its id, name and category.",
-        input_schema=build_object_schema({}),
-    )
-
-    def run(self, arguments: dict[str, Any], context: ToolContext) -> ToolResult:
-        items = [
-            {
-                "id": item.id,
-                "name": item.name,
-                "category": item.category,
-                "description": item.description,
-            }
-            for item in context.equipment.list_active()
-        ]
-        return ToolOutput(to_json(items))
 
 
 class CheckAvailabilityTool:
@@ -226,7 +206,7 @@ class ProposeBookingTool:
         name="propose_booking",
         description=(
             "Finish by offering this booking as a draft. The person reviews it "
-            "before anything is saved. Only use ids from list_equipment, and "
+            "before anything is saved. Only use ids from the equipment list, and "
             "only times you've checked are free."
         ),
         input_schema=build_object_schema(
@@ -410,7 +390,6 @@ class ProposeCancelTool:
 
 
 ASSISTANT_TOOLS: list[AssistantTool] = [
-    ListEquipmentTool(),
     CheckAvailabilityTool(),
     FindFreeTimesTool(),
     FindBookingsTool(),

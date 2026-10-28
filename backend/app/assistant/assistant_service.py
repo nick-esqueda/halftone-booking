@@ -107,7 +107,10 @@ class AssistantService:
         self, request: AssistantRequest, context: ToolContext
     ) -> list[Turn]:
         context_text = build_context_message(
-            context.now, self.settings, context.booker_name
+            context.now,
+            self.settings,
+            context.booker_name,
+            context.equipment.list_active(),
         )
         earlier_turns: list[Turn] = [
             UserTurn(entry.text) if entry.role == "user" else ModelTurn(entry.text)

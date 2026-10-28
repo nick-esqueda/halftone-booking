@@ -22,6 +22,8 @@ from tests.helpers import CAMERA_A, CAMERA_B, LIGHTING_KIT_1, create_booking_ok
 from tests.scripted_model import ScriptedModel, call_tools, provider_down, say
 
 THURSDAY_1_TO_3 = {"starts_at": "2026-10-29T13:00", "ends_at": "2026-10-29T15:00"}
+# A harmless read-only call, for tests about the loop itself.
+CHECK_THURSDAY = ("check_availability", {**THURSDAY_1_TO_3, "equipment_ids": []})
 
 
 def ask(client: TestClient, message: str, **fields: Any) -> Response:
@@ -70,7 +72,6 @@ def test_a_free_request_becomes_a_draft_that_is_not_saved(
     client: TestClient, model: ScriptedModel, session: Session
 ) -> None:
     model.will_reply(
-        call_tools(("list_equipment", {})),
         call_tools(
             ("check_availability", {**THURSDAY_1_TO_3, "equipment_ids": [CAMERA_A]})
         ),
@@ -95,7 +96,6 @@ def test_tool_results_go_back_to_the_model(
 ) -> None:
     create_booking_ok(client, booker_name="Ana", purpose="Shoot")
     model.will_reply(
-        call_tools(("list_equipment", {})),
         call_tools(
             ("check_availability", {**THURSDAY_1_TO_3, "equipment_ids": [CAMERA_A]})
         ),
@@ -104,9 +104,7 @@ def test_tool_results_go_back_to_the_model(
 
     ask_ok(client, "Is Camera A free Thursday at 1?")
 
-    equipment_result, availability_result = model.outcomes_sent_back()
-    names = [item["name"] for item in json.loads(equipment_result.content)]
-    assert "Camera A" in names
+    [availability_result] = model.outcomes_sent_back()
     [camera] = json.loads(availability_result.content)
     assert camera["is_free"] is False
     assert camera["busy"] == [
@@ -275,7 +273,7 @@ def test_a_final_tool_stops_the_rest_of_the_calls(
     client: TestClient, model: ScriptedModel
 ) -> None:
     question = {"question": "Which day?", "purpose": "", "options": []}
-    model.will_reply(call_tools(("ask_user", question), ("list_equipment", {})))
+    model.will_reply(call_tools(("ask_user", question), CHECK_THURSDAY))
 
     assert ask_ok(client, "A light")["kind"] == "question"
     assert len(model.requests) == 1
@@ -303,7 +301,7 @@ def test_a_model_that_never_finishes_is_stopped(
     client: TestClient, model: ScriptedModel
 ) -> None:
     max_calls = get_settings().assistant_max_model_calls
-    model.will_reply(*[call_tools(("list_equipment", {}))] * (max_calls + 1))
+    model.will_reply(*[call_tools(CHECK_THURSDAY)] * (max_calls + 1))
 
     reply = ask_ok(client, "Camera A Thursday")
 
@@ -391,7 +389,8 @@ def test_the_model_gets_the_context_history_and_message_in_order(
     context, earlier_request, earlier_reply, message = model.requests[0].turns
     assert isinstance(context, UserTurn)
     assert "Tuesday 2026-10-27 10:30" in context.text
-    assert "The person's name: Sam K\n" in f"{context.text}\n"
+    assert "The person's name: Sam K\n" in context.text
+    assert '{"id":1,"name":"Camera A","category":"camera"' in context.text
     assert earlier_request == UserTurn("Camera A Friday")
     assert earlier_reply == ModelTurn("Which time on Friday?")
     assert message == UserTurn("The morning")
@@ -400,7 +399,7 @@ def test_the_model_gets_the_context_history_and_message_in_order(
 def test_each_round_adds_the_model_turn_and_its_results(
     client: TestClient, model: ScriptedModel
 ) -> None:
-    first_turn = call_tools(("list_equipment", {}))
+    first_turn = call_tools(CHECK_THURSDAY)
     model.will_reply(first_turn, say("Done"))
 
     ask_ok(client, "What's there?")
