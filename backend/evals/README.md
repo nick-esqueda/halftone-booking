@@ -50,6 +50,7 @@ time, and all times are studio wall-clock times (`2026-10-29T13:00`).
 | `options_date` | Every option starts on this date (`2026-10-30`). |
 | `options_equipment` | Every option has exactly these items. |
 | `message_contains_any` | The reply's message contains at least one of these phrases (any case). |
+| `message_contains_all` | The reply's message contains every one of these phrases (any case). |
 | `message_excludes` | The reply's message contains none of these phrases (any case). |
 | `booking_id` | A change or cancel is for this booking (case bookings are numbered from 1, in order). |
 

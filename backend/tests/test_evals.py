@@ -101,6 +101,10 @@ def test_the_message_is_checked_for_phrases() -> None:
     assert grade_reply(reply, message_contains_any=["sorry"]) == [
         "message mentions none of ['sorry']"
     ]
+    assert grade_reply(reply, message_contains_all=["click", "schedule"]) == []
+    assert grade_reply(reply, message_contains_all=["click", "sorry"]) == [
+        "message is missing ['sorry']"
+    ]
 
 
 def test_a_change_is_graded_on_its_booking() -> None:

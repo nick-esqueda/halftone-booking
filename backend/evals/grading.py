@@ -149,6 +149,14 @@ def check_message_contains_any(
     return f"message mentions none of {expected}"
 
 
+def check_message_contains_all(
+    expected: list[str], context: GradingContext
+) -> str | None:
+    message = context.reply.message.lower()
+    missing = [phrase for phrase in expected if phrase.lower() not in message]
+    return f"message is missing {missing}" if missing else None
+
+
 def check_message_excludes(unwanted: list[str], context: GradingContext) -> str | None:
     message = context.reply.message.lower()
     found = [phrase for phrase in unwanted if phrase.lower() in message]
@@ -174,6 +182,7 @@ CHECKS: dict[str, Check] = {
     "options_date": check_options_date,
     "options_equipment": check_options_equipment,
     "message_contains_any": check_message_contains_any,
+    "message_contains_all": check_message_contains_all,
     "message_excludes": check_message_excludes,
     "booking_id": check_booking_id,
 }

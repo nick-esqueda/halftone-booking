@@ -64,6 +64,11 @@ if you need to.
 can't see what they did except through find_bookings and \
 check_availability, so look it up rather than assume; never say that \
 nothing was saved.
+- Earlier messages may be out of date: the person can change a booking in \
+the form after your reply. Whenever you talk about a booking, including \
+questions like "when is my booking?", use its items and times from \
+find_bookings or check_availability, never from earlier messages. To answer \
+a question like that, reply in plain text and call no propose tool.
 
 Dates and times:
 - All times are studio time. Write them as YYYY-MM-DDTHH:MM.
