@@ -54,8 +54,32 @@ RECOVERABLE_TOOL_ERRORS: tuple[type[Exception], ...] = (
 )
 
 
+# The kind of each tool result, for log lines.
+TOOL_RESULT_KINDS: dict[type, str] = {
+    FinalAnswer: "final_answer",
+    ToolOutput: "output",
+    ToolFailure: "failure",
+}
+
+MILLISECONDS_PER_SECOND = 1000
+
+
 def build_message_reply(text: str) -> AssistantReply:
     return AssistantReply(kind="message", message=text)
+
+
+def describe_reply(reply: AssistantReply) -> dict[str, object]:
+    """What the assistant suggested, for the INFO log: ids and times, no text."""
+    fields: dict[str, object] = {
+        "reply_kind": reply.kind,
+        "option_count": len(reply.options),
+        "booking_id": reply.booking_id,
+    }
+    if reply.draft is not None:
+        fields["equipment_ids"] = reply.draft.equipment_ids
+        fields["starts_at"] = reply.draft.starts_at.isoformat()
+        fields["ends_at"] = reply.draft.ends_at.isoformat()
+    return fields
 
 
 class AssistantService:
@@ -73,14 +97,31 @@ class AssistantService:
         self.system_prompt = build_system_prompt(settings)
 
     def reply(self, request: AssistantRequest) -> AssistantReply:
+        started_at = time.perf_counter()
         context = replace(self.context, booker_name=request.booker_name.strip())
         turns = self._start_conversation(request, context)
+        history_fields = {"history_turns": len(request.history)}
+        logger.debug("Assistant request started", extra=history_fields)
+
+        reply = self._run_rounds(turns, context)
+
+        elapsed_seconds = time.perf_counter() - started_at
+        duration_ms = round(elapsed_seconds * MILLISECONDS_PER_SECOND)
+        reply_fields = {**describe_reply(reply), "duration_ms": duration_ms}
+        logger.info("Assistant replied", extra=reply_fields)
+        return reply
+
+    def _run_rounds(self, turns: list[Turn], context: ToolContext) -> AssistantReply:
+        """Call the model and run its tools until it answers or a limit hits."""
         deadline = self.monotonic() + self.settings.assistant_timeout_seconds
 
-        for _ in range(self.settings.assistant_max_model_calls):
+        for round_number in range(1, self.settings.assistant_max_model_calls + 1):
             remaining_seconds = deadline - self.monotonic()
             if remaining_seconds <= 0:
-                break
+                logger.warning(
+                    "Assistant ran out of time", extra={"round": round_number}
+                )
+                return build_message_reply(GAVE_UP_MESSAGE)
             model_turn = self.provider.complete(
                 CompletionRequest(
                     system_prompt=self.system_prompt,
@@ -100,7 +141,8 @@ class AssistantService:
                 return final_answer.reply
             turns.append(ToolResultsTurn(outcomes))
 
-        logger.warning("Assistant gave up on %r", request.message)
+        max_calls = {"max_model_calls": self.settings.assistant_max_model_calls}
+        logger.warning("Assistant used every model call", extra=max_calls)
         return build_message_reply(GAVE_UP_MESSAGE)
 
     def _start_conversation(
@@ -125,6 +167,8 @@ class AssistantService:
             StopReason.TRUNCATED: GAVE_UP_MESSAGE,
         }
         fallback_text = model_turn.text or EMPTY_REPLY_MESSAGE
+        stop_fields = {"stop_reason": str(model_turn.stop_reason)}
+        logger.debug("Model answered without a final tool", extra=stop_fields)
         text = replies_by_stop_reason.get(model_turn.stop_reason, fallback_text)
         return build_message_reply(text)
 
@@ -135,6 +179,7 @@ class AssistantService:
         outcomes: list[ToolOutcome] = []
         for call in tool_calls:
             result = run_tool_call(call, context)
+            log_tool_result(call, result)
             if isinstance(result, FinalAnswer):
                 return result, outcomes
             outcomes.append(build_outcome(call, result))
@@ -150,6 +195,14 @@ def run_tool_call(call: ToolCall, context: ToolContext) -> ToolResult:
     except RECOVERABLE_TOOL_ERRORS as error:
         message = getattr(error, "message", None) or str(error)
         return ToolFailure(message)
+
+
+def log_tool_result(call: ToolCall, result: ToolResult) -> None:
+    fields = {"tool": call.name, "result": TOOL_RESULT_KINDS[type(result)]}
+    if isinstance(result, ToolFailure):
+        # Sent back to the model so it can retry; may name a person, so DEBUG.
+        fields["error"] = result.message
+    logger.debug("Tool call finished", extra=fields)
 
 
 def build_outcome(call: ToolCall, result: ToolOutput | ToolFailure) -> ToolOutcome:

@@ -46,6 +46,15 @@ class StopReason(StrEnum):
 
 
 @dataclass(frozen=True)
+class TokenUsage:
+    """Tokens one model call used, for logs and cost tracking."""
+
+    input_tokens: int
+    output_tokens: int
+    cached_input_tokens: int = 0
+
+
+@dataclass(frozen=True)
 class UserTurn:
     text: str
 
@@ -56,13 +65,15 @@ class ModelTurn:
 
     `provider_content` holds the provider's own reply blocks, so its adapter
     can send them back unchanged on the next call. It's None for turns the
-    app rebuilt from saved text.
+    app rebuilt from saved text. `usage` is None when the provider doesn't
+    report token counts.
     """
 
     text: str
     tool_calls: list[ToolCall] = field(default_factory=list)
     stop_reason: StopReason = StopReason.DONE
     provider_content: Any = None
+    usage: TokenUsage | None = None
 
 
 @dataclass(frozen=True)
@@ -83,6 +94,10 @@ class CompletionRequest:
 
 class LLMUnavailableError(Exception):
     """The provider couldn't be reached or rejected the call (outage, bad key)."""
+
+
+class LLMRateLimitedError(LLMUnavailableError):
+    """The provider is up but asked us to slow down."""
 
 
 class LLMProvider(Protocol):

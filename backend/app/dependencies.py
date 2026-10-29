@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.assistant.assistant_service import AssistantService
 from app.assistant.llm import LLMProvider
+from app.assistant.llm_logging import LoggingLLMProvider
 from app.assistant.providers import build_llm_provider
 from app.assistant.rate_limit import SlidingWindowRateLimiter
 from app.assistant.tools import build_tool_context
@@ -86,7 +87,8 @@ def get_assistant_service(
     if provider is None:
         raise AssistantUnavailableError(ASSISTANT_OFF_MESSAGE)
     context = build_tool_context(session, settings, clock)
-    return AssistantService(provider, context, settings)
+    logged_provider = LoggingLLMProvider(provider, settings)
+    return AssistantService(logged_provider, context, settings)
 
 
 AssistantServiceDependency = Annotated[AssistantService, Depends(get_assistant_service)]
