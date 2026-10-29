@@ -1,6 +1,5 @@
 """Adapter that runs the assistant on Claude through the Anthropic SDK."""
 
-import logging
 from typing import Final
 
 import anthropic
@@ -10,13 +9,16 @@ from anthropic.types.beta import (
     BetaTextBlockParam,
     BetaToolParam,
     BetaToolResultBlockParam,
+    BetaUsage,
 )
 
 from app.assistant.llm import (
     CompletionRequest,
+    LLMRateLimitedError,
     LLMUnavailableError,
     ModelTurn,
     StopReason,
+    TokenUsage,
     ToolCall,
     ToolResultsTurn,
     ToolSpec,
@@ -24,8 +26,6 @@ from app.assistant.llm import (
     UserTurn,
 )
 from app.config import LLMEffort
-
-logger = logging.getLogger(__name__)
 
 # If the model declines a request, the API retries it on a model chosen for
 # that kind of refusal, inside the same call.
@@ -72,10 +72,11 @@ class AnthropicProvider:
             # Also covers timeouts (APITimeoutError is a subclass).
             raise LLMUnavailableError(f"Couldn't reach Anthropic: {error}") from error
         except anthropic.RateLimitError as error:
-            raise LLMUnavailableError("Anthropic rate limit reached.") from error
+            raise LLMRateLimitedError("Anthropic rate limit reached.") from error
         except anthropic.APIStatusError as error:
-            logger.error("Anthropic returned %s: %s", error.status_code, error.message)
-            raise LLMUnavailableError(f"Anthropic error {error.status_code}") from error
+            # Logged by LoggingLLMProvider, which wraps every provider.
+            message = f"Anthropic error {error.status_code}: {error.message}"
+            raise LLMUnavailableError(message) from error
 
         return build_model_turn(response)
 
@@ -132,4 +133,13 @@ def build_model_turn(response: BetaMessage) -> ModelTurn:
         tool_calls=tool_calls,
         stop_reason=stop_reason,
         provider_content=response.content,
+        usage=build_token_usage(response.usage),
+    )
+
+
+def build_token_usage(usage: BetaUsage) -> TokenUsage:
+    return TokenUsage(
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        cached_input_tokens=usage.cache_read_input_tokens or 0,
     )

@@ -302,7 +302,8 @@ The assistant's evals in `backend/evals/` grade the real model's choices; see [i
 - **Request IDs.** To see everything one request did: `jq 'select(.request_id == "<id>")' logs/api.log`.
 - **Levels.** `BOOKING_LOG_LEVEL` is `DEBUG` locally and `INFO` by default. `TRACE` adds every SQL statement and health check. Tune one area with `BOOKING_LOG_LEVELS=app.services=TRACE`.
 - **Destinations.** `BOOKING_LOG_SINKS` picks them by name: `console`, `file`, `stdout-json`. To send logs somewhere new, add a sink in `backend/app/observability/sinks.py`.
-- **Privacy.** Booker names and purposes appear only at DEBUG and below; passwords, tokens and keys are masked on every sink.
+- **Assistant.** Each model call logs one INFO line with the provider, model, duration, token counts and the tools it asked for; failures are ERROR (rate limits WARNING). Each assistant request logs what it suggested (kind, equipment, times), and each tool call at DEBUG.
+- **Privacy.** Booker names and purposes appear only at DEBUG and below; passwords, tokens and keys are masked on every sink. What people type to the assistant, and the model's replies, are logged only at TRACE and only with `BOOKING_LOG_LLM_CONTENT=true`.
 
 ## Configuration
 

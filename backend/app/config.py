@@ -90,6 +90,10 @@ class Settings(BaseSettings):
     slow_request_ms: int = 1000
     slow_query_ms: int = 200
 
+    # Log full assistant prompts and model replies at TRACE. Off by default,
+    # because they hold what people typed.
+    log_llm_content: bool = False
+
 
 @lru_cache
 def get_settings() -> Settings:
