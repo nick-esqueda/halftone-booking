@@ -7,9 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.config import Settings, get_settings
-from app.demo_bookings import DEMO_BOOKER_NAMES, seed_demo_bookings
+from app.demo_bookings import seed_demo_bookings
 from app.models import Booking
 from app.services.booking_times import get_booking_span
+from app.studio_users import STUDIO_USERNAMES
 from tests.conftest import DEFAULT_NOW, STUDIO_ZONE, FixedClock
 
 # A fixed seed keeps the planned schedule the same on every test run.
@@ -27,14 +28,14 @@ def load_bookings(session: Session) -> list[Booking]:
     return list(session.scalars(query))
 
 
-def test_seeds_bookings_from_the_demo_names(session: Session) -> None:
+def test_demo_bookings_belong_to_the_studio_users(session: Session) -> None:
     added_count = run_demo_seed(session)
 
     bookings = load_bookings(session)
     booker_names = {booking.booker_name for booking in bookings}
     assert added_count == len(bookings)
     assert added_count > 50
-    assert booker_names <= set(DEMO_BOOKER_NAMES)
+    assert booker_names <= set(STUDIO_USERNAMES)
 
 
 def test_bookings_stay_within_the_next_two_months(session: Session) -> None:

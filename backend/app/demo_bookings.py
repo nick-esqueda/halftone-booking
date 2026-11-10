@@ -1,6 +1,7 @@
 """Random demo bookings, so a fresh database has a schedule to look at.
 
-Bookings are only added when the database has none, so restarts don't pile
+Each booking is for one of the studio's seeded users, so run the user seed
+first. Bookings are only added when the database has none, so restarts don't pile
 up duplicates. Every booking goes through `BookingService`, so the demo data
 obeys the same rules as real bookings (time step, 7-day cap, no overlaps).
 Any planned booking that breaks a rule, for example one that clashes with an
@@ -27,25 +28,9 @@ from app.repositories.equipment_repository import EquipmentRepository
 from app.schemas import BookingCreateRequest
 from app.services.booking_service import BookingService
 from app.studio_time import Clock
+from app.studio_users import STUDIO_USERNAMES
 
 logger = logging.getLogger(__name__)
-
-DEMO_BOOKER_NAMES: list[str] = [
-    "Susie",
-    "Eric",
-    "Danny",
-    "Jordan",
-    "Mike",
-    "Aidan",
-    "Tyler",
-    "Morgan",
-    "Nick",
-    "Priya",
-    "Marcus",
-    "Lena",
-    "Rosa",
-    "Theo",
-]
 
 # Single-day bookings start between these studio hours.
 EARLIEST_START_HOUR = 8
@@ -166,7 +151,7 @@ class DemoBookingPlanner:
             for category in kind.categories
         ]
         return BookingCreateRequest(
-            booker_name=self.rng.choice(DEMO_BOOKER_NAMES),
+            booker_name=self.rng.choice(STUDIO_USERNAMES),
             purpose=self.rng.choice(kind.purposes),
             equipment_ids=equipment_ids,
             starts_at=starts_at,

@@ -1,9 +1,9 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { installFakeApi, respond } from "../test/fakeApi";
-import { renderWithProviders } from "../test/renderWithProviders";
+import { TEST_USERS, renderWithProviders } from "../test/renderWithProviders";
 import { SchedulePage } from "./SchedulePage";
 
 const CONFIG = { timezone: "America/Chicago", time_step_minutes: 15 };
@@ -21,6 +21,60 @@ const UNAVAILABLE = {
   message: "Booking is temporarily unavailable. Please try again in a minute.",
   conflicts: [],
 };
+
+const ANAS_BOOKING = {
+  id: 7,
+  booker_name: "Ana",
+  purpose: "Interview",
+  starts_at: "2099-10-29T10:00:00-05:00",
+  ends_at: "2099-10-29T12:00:00-05:00",
+  is_cancelled: false,
+  version: 3,
+  items: [{ equipment_id: CAMERA_A.id, equipment_name: "Camera A" }],
+};
+const BUSY_AVAILABILITY = {
+  equipment: [
+    {
+      equipment: CAMERA_A,
+      is_free: false,
+      busy: [
+        {
+          booking_id: ANAS_BOOKING.id,
+          booker_name: "Ana",
+          purpose: "Interview",
+          // Spans today whatever day the test runs.
+          starts_at: "2000-01-01T00:00:00-06:00",
+          ends_at: ANAS_BOOKING.ends_at,
+        },
+      ],
+    },
+  ],
+};
+
+describe("someone else's booking on the schedule", () => {
+  it("opens with Save changes and Cancel available", async () => {
+    installFakeApi({
+      "GET /api/config": () => respond(200, CONFIG),
+      "GET /api/availability": () => respond(200, BUSY_AVAILABILITY),
+      "GET /api/users": () => respond(200, TEST_USERS),
+      "GET /api/bookings/7": () => respond(200, ANAS_BOOKING),
+      "GET /api/bookings/7/history": () => respond(200, []),
+    });
+    renderWithProviders(<SchedulePage />);
+
+    await userEvent.click(await screen.findByRole("button", { name: /Ana/ }));
+
+    const dialog = await screen.findByRole("dialog", {
+      name: "Booking by Ana",
+    });
+    expect(
+      await within(dialog).findByRole("button", { name: "Save changes" }),
+    ).toBeEnabled();
+    expect(
+      within(dialog).getByRole("button", { name: /^Cancel$/ }),
+    ).toBeEnabled();
+  });
+});
 
 describe("SchedulePage when the API is failing", () => {
   it("shows an error instead of an empty timeline, then recovers", async () => {

@@ -57,3 +57,7 @@ def update_booking(
 def cancel_booking(client: TestClient, booking: dict[str, Any]) -> Response:
     payload = {"actor_name": booking["booker_name"], "version": booking["version"]}
     return client.post(f"/api/bookings/{booking['id']}/cancel", json=payload)
+
+
+def log_in(client: TestClient, username: str) -> Response:
+    return client.post("/api/login", json={"username": username})

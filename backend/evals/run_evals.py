@@ -42,12 +42,12 @@ from app.config import Settings, get_settings  # noqa: E402
 from app.db import get_engine, get_session_factory  # noqa: E402
 from app.repositories.equipment_repository import EquipmentRepository  # noqa: E402
 from app.schemas import AssistantReply, AssistantRequest, BookingRequest  # noqa: E402
-from app.seed import seed_equipment  # noqa: E402
+from app.seed import seed_equipment, seed_users  # noqa: E402
 from app.services.booking_service import BookingService  # noqa: E402
 from evals.grading import EquipmentInfo, GradingContext, grade  # noqa: E402
 
 CASES_PATH = Path(__file__).with_name("cases.json")
-ALL_TABLES = "booking_events, booking_items, bookings, equipment"
+ALL_TABLES = "booking_events, booking_items, bookings, equipment, users"
 STUDIO_ZONE = ZoneInfo("America/Chicago")
 EVAL_NOW = datetime(2026, 10, 27, 10, 30, tzinfo=STUDIO_ZONE)
 DEFAULT_PASS_RATE = 0.9
@@ -83,6 +83,7 @@ def reset_database(session: Session) -> None:
     session.execute(text(f"TRUNCATE {ALL_TABLES} RESTART IDENTITY CASCADE"))
     session.commit()
     seed_equipment(session)
+    seed_users(session)
 
 
 def load_equipment(session: Session) -> dict[int, EquipmentInfo]:
@@ -94,6 +95,8 @@ def add_bookings(
     session: Session, settings: Settings, bookings: list[dict[str, Any]]
 ) -> None:
     ids_by_name = {info.name: id for id, info in load_equipment(session).items()}
+    # Bookings need a real user, so add anyone a case books for.
+    seed_users(session, [booking["booker_name"] for booking in bookings])
     service = BookingService(session, settings, FixedClock())
     for booking in bookings:
         equipment_ids = [ids_by_name[name] for name in booking["equipment"]]

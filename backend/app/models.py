@@ -1,5 +1,8 @@
 """Database tables.
 
+A user is one person at the studio, found by username. There is no password
+yet; that arrives with real authentication in a later phase.
+
 A booking is a header (who and why) plus one row per reserved item. Each
 item row holds the reserved time range, and that is the only place the time
 is stored. Postgres can only check overlaps between columns of one table, so
@@ -13,6 +16,7 @@ from sqlalchemy import (
     CheckConstraint,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -23,6 +27,7 @@ from sqlalchemy.dialects.postgresql import TSTZRANGE, ExcludeConstraint, Range
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 NO_OVERLAP_CONSTRAINT_NAME = "booking_items_no_overlap"
+USERNAME_INDEX_NAME = "users_username_lower_key"
 
 
 class Base(DeclarativeBase):
@@ -39,11 +44,28 @@ class Equipment(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class User(Base):
+    __tablename__ = "users"
+    __table_args__ = (
+        # "Sam K" and "sam k" are the same person, so uniqueness ignores case.
+        Index(USERNAME_INDEX_NAME, func.lower(text("username")), unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    username: Mapped[str] = mapped_column(String(80))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+
+
 class Booking(Base):
     __tablename__ = "bookings"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    booker_name: Mapped[str] = mapped_column(String(80), index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), index=True)
     purpose: Mapped[str] = mapped_column(String(200), default="")
     version: Mapped[int] = mapped_column(Integer, default=1)
     created_at: Mapped[datetime] = mapped_column(
@@ -53,9 +75,15 @@ class Booking(Base):
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
 
+    # Joined on every load: almost every use of a booking shows who booked it.
+    user: Mapped[User] = relationship(lazy="joined", innerjoin=True)
     items: Mapped[list["BookingItem"]] = relationship(
         back_populates="booking", order_by="BookingItem.id"
     )
+
+    @property
+    def booker_name(self) -> str:
+        return self.user.username
 
     @property
     def active_items(self) -> list["BookingItem"]:
@@ -102,10 +130,15 @@ class BookingEvent(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     booking_id: Mapped[int] = mapped_column(ForeignKey("bookings.id"), index=True)
     action: Mapped[str] = mapped_column(String(20))
-    actor_name: Mapped[str] = mapped_column(String(80))
+    actor_user_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
     summary: Mapped[str] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )
 
     booking: Mapped[Booking] = relationship()
+    actor: Mapped[User] = relationship(lazy="joined", innerjoin=True)
+
+    @property
+    def actor_name(self) -> str:
+        return self.actor.username

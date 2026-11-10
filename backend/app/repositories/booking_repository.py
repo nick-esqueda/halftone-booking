@@ -8,7 +8,7 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.dialects.postgresql import Range
 from sqlalchemy.orm import Session, selectinload
 
-from app.models import Booking, BookingEvent, BookingItem
+from app.models import Booking, BookingEvent, BookingItem, User
 
 HALF_OPEN_BOUNDS: Final = "[)"
 
@@ -77,17 +77,18 @@ class BookingRepository:
         return list(self.session.scalars(query))
 
     def list_by_booker(self, booker_name: str) -> list[Booking]:
-        name_matches = func.lower(Booking.booker_name) == booker_name.lower()
-        query = _select_bookings_with_items().where(name_matches).order_by(Booking.id)
+        name_matches = func.lower(User.username) == booker_name.lower()
+        query = (
+            _select_bookings_with_items()
+            .join(Booking.user)
+            .where(name_matches)
+            .order_by(Booking.id)
+        )
         return list(self.session.scalars(query))
 
     def has_any_bookings(self) -> bool:
         query = select(Booking.id).limit(1)
         return self.session.scalar(query) is not None
-
-    def list_booker_names(self) -> list[str]:
-        query = select(Booking.booker_name).distinct().order_by(Booking.booker_name)
-        return list(self.session.scalars(query))
 
     def list_events(self, booking_id: int) -> list[BookingEvent]:
         query = (

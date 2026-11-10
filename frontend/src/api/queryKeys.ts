@@ -2,7 +2,8 @@
 export const queryKeys = {
   config: ["config"] as const,
   equipment: ["equipment"] as const,
-  bookerNames: ["booker-names"] as const,
+  users: ["users"] as const,
+  user: (userId: number) => ["users", userId] as const,
   availabilityAll: ["availability"] as const,
   availability: (
     startsAt: string,

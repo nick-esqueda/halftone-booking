@@ -5,7 +5,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import { ROUTER_FUTURE_FLAGS } from "./config/constants";
 import { App } from "./App";
-import { BookerNameProvider } from "./features/identity/BookerNameContext";
+import { SessionProvider } from "./features/session/SessionProvider";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -16,9 +16,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter future={ROUTER_FUTURE_FLAGS}>
-        <BookerNameProvider>
+        <SessionProvider>
           <App />
-        </BookerNameProvider>
+        </SessionProvider>
       </BrowserRouter>
     </QueryClientProvider>
   </StrictMode>,

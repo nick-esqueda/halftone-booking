@@ -4,11 +4,12 @@ import { describe, expect, it } from "vitest";
 
 import type { AssistantReply } from "../../api/types";
 import { installFakeApi, respond } from "../../test/fakeApi";
-import { renderWithProviders } from "../../test/renderWithProviders";
+import {
+  TEST_USERS,
+  renderWithProviders,
+} from "../../test/renderWithProviders";
 import { readTime } from "../../test/timePicker";
 import { SchedulePage } from "../../pages/SchedulePage";
-import { useBookerNameContext } from "../identity/bookerNameStore";
-import { NameInput } from "../identity/NameInput";
 
 const CAMERA_A = {
   id: 1,
@@ -85,7 +86,7 @@ function installApi(assistantReply: () => Response, assistantEnabled = true) {
     "GET /api/config": () =>
       respond(200, { ...CONFIG, assistant_enabled: assistantEnabled }),
     "GET /api/availability": () => respond(200, AVAILABILITY),
-    "GET /api/booker-names": () => respond(200, []),
+    "GET /api/users": () => respond(200, TEST_USERS),
     "POST /api/assistant/draft": assistantReply,
     "POST /api/bookings": () => respond(201, SAVED_BOOKING),
   });
@@ -96,20 +97,6 @@ async function ask(message: string) {
   await userEvent.clear(input);
   await userEvent.type(input, message);
   await userEvent.click(screen.getByRole("button", { name: "Ask" }));
-}
-
-/** The "Booking as" field, as the app header shows it. */
-function BookingAsField() {
-  const { bookerName, setBookerName } = useBookerNameContext();
-  return (
-    <NameInput label="Booking as" value={bookerName} onChange={setBookerName} />
-  );
-}
-
-async function bookAs(name: string) {
-  const field = screen.getByLabelText("Booking as");
-  await userEvent.clear(field);
-  await userEvent.type(field, name);
 }
 
 describe("AssistantPanel", () => {
@@ -142,7 +129,7 @@ describe("AssistantPanel", () => {
     expect(api.requests("POST /api/assistant/draft")).toEqual([
       {
         message: "Camera A Thursday 1 to 3 for an interview",
-        booker_name: "",
+        booker_name: "Sam K",
         history: [],
       },
     ]);
@@ -154,7 +141,7 @@ describe("AssistantPanel", () => {
 
     await ask("Camera A Thursday 1 to 3 for an interview");
     const dialog = await screen.findByRole("dialog", { name: "New booking" });
-    await userEvent.type(within(dialog).getByLabelText("Booked by"), "Sam K");
+    expect(within(dialog).getByLabelText("Booked by")).toHaveValue("Sam K");
     const purpose = within(dialog).getByLabelText("Purpose");
     await userEvent.clear(purpose);
     await userEvent.type(purpose, "Interview with Ana");
@@ -180,7 +167,7 @@ describe("AssistantPanel", () => {
 
     await ask("Camera A Thursday 1 to 3 for an interview");
     const dialog = await screen.findByRole("dialog", { name: "New booking" });
-    await userEvent.type(within(dialog).getByLabelText("Booked by"), "Sam K");
+    expect(within(dialog).getByLabelText("Booked by")).toHaveValue("Sam K");
     await userEvent.click(
       within(dialog).getByRole("button", { name: "Book 1 item" }),
     );
@@ -234,7 +221,7 @@ describe("AssistantPanel", () => {
     const [, followUp] = api.requests("POST /api/assistant/draft");
     expect(followUp).toEqual({
       message: "The morning one",
-      booker_name: "",
+      booker_name: "Sam K",
       history: [
         { role: "user", text: "Camera A for Friday's shoot" },
         { role: "assistant", text: QUESTION_REPLY.message },
@@ -242,29 +229,19 @@ describe("AssistantPanel", () => {
     });
   });
 
-  it("labels questions with the name they were sent under", async () => {
+  it("labels questions with the logged-in name", async () => {
     installApi(() => respond(200, MESSAGE_REPLY));
-    renderWithProviders(
-      <>
-        <BookingAsField />
-        <SchedulePage />
-      </>,
-    );
+    renderWithProviders(<SchedulePage />, {
+      user: { userId: 2, username: "Ana" },
+    });
 
-    await bookAs("Sam K");
-    await ask("Camera A Thursday");
-    await screen.findByText(MESSAGE_REPLY.message);
-    await bookAs("Ana");
     await ask("Camera B Thursday");
-    await screen.findByText("Camera B Thursday");
+    await screen.findByText(MESSAGE_REPLY.message);
 
     const lines = within(
       screen.getByRole("list", { name: "Conversation" }),
     ).getAllByRole("listitem");
     expect(lines.map((line) => line.textContent)).toEqual([
-      "Sam K: Camera A Thursday",
-      `Assistant: ${MESSAGE_REPLY.message}`,
-      "Now booking as Ana",
       "Ana: Camera B Thursday",
       `Assistant: ${MESSAGE_REPLY.message}`,
     ]);

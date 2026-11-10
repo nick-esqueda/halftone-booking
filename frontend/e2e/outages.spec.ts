@@ -4,6 +4,10 @@
  */
 import { expect, test } from "@playwright/test";
 
+import { logInAs } from "./session";
+
+// A seeded user that only this spec logs in as.
+const OUTAGE_BOOKER = "Mike";
 const AVAILABILITY_URL = "**/api/availability**";
 const BOOKINGS_URL = "**/api/bookings";
 const UNAVAILABLE_BODY = {
@@ -18,7 +22,7 @@ test("the schedule explains an outage and recovers on Try again", async ({
   await page.route(AVAILABILITY_URL, (route) =>
     route.fulfill({ status: 503, json: UNAVAILABLE_BODY }),
   );
-  await page.goto("/");
+  await logInAs(page, OUTAGE_BOOKER);
 
   const alert = page.getByRole("alert");
   await expect(alert).toContainText("Couldn't load the schedule.");
@@ -34,8 +38,7 @@ test("the schedule explains an outage and recovers on Try again", async ({
 test("a booking that can't reach the server keeps the form", async ({
   page,
 }) => {
-  await page.goto("/");
-  await page.getByLabel("Your name").fill("E2E Outage");
+  await logInAs(page, OUTAGE_BOOKER);
   await page.getByRole("button", { name: "Next week" }).click();
   await page.getByRole("button", { name: "+ New booking" }).click();
   const dialog = page.getByRole("dialog");

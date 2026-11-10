@@ -14,18 +14,17 @@ import {
   type Page,
 } from "@playwright/test";
 
+import { logInAs, switchUser } from "./session";
+
 const DAY_VIEW_START_HOUR = 7;
 const DAY_VIEW_END_HOUR = 22;
 const CLICK_OFFSET_PX = 4;
 const CAMERA_A_ID = 1;
 const CAMERA_B_ID = 2;
 const STUDIO_TIMEZONE = "America/Chicago";
-const FIRST_BOOKER = "E2E Ana";
-const SECOND_BOOKER = "E2E Ben";
-
-async function setBookerName(page: Page, name: string) {
-  await page.getByLabel("Your name").fill(name);
-}
+// Seeded users this spec books as.
+const FIRST_BOOKER = "Susie";
+const SECOND_BOOKER = "Eric";
 
 async function openNextWednesday(page: Page) {
   await page.getByRole("button", { name: "Next week" }).click();
@@ -138,9 +137,8 @@ async function cancelOpenBooking(page: Page) {
   await expect(page.getByRole("dialog")).toBeHidden();
 }
 
-test("book, clash, edit and cancel", async ({ page }) => {
-  await page.goto("/");
-  await setBookerName(page, FIRST_BOOKER);
+test("book, clash, then someone else edits and cancels", async ({ page }) => {
+  await logInAs(page, FIRST_BOOKER);
   await openNextWednesday(page);
 
   // Book Camera A, 10 AM-12 PM.
@@ -154,8 +152,9 @@ test("book, clash, edit and cancel", async ({ page }) => {
   });
   await expect(firstBlock).toContainText("You");
 
-  // Someone else sees Camera A as taken at 11:00 and books Camera B.
-  await setBookerName(page, SECOND_BOOKER);
+  // Someone else logs in, sees Camera A as taken at 11:00 and books Camera B.
+  await switchUser(page, SECOND_BOOKER);
+  await openNextWednesday(page);
   await clickSlot(page, CAMERA_B_ID, 11);
   await expect(dialog.getByText(`Taken by ${FIRST_BOOKER}`)).toBeVisible();
   await expect(
@@ -164,8 +163,7 @@ test("book, clash, edit and cancel", async ({ page }) => {
   await dialog.getByRole("button", { name: "Book 1 item" }).click();
   await expect(dialog).toBeHidden();
 
-  // Edit the first booking: run until 1 PM.
-  await setBookerName(page, FIRST_BOOKER);
+  // They edit the first person's booking: run until 1 PM.
   await firstBlock.click();
   await pickTime(page, "End time", { hour: "1", minutes: "00", period: "PM" });
   await dialog.getByRole("button", { name: "Save changes" }).click();
@@ -175,8 +173,10 @@ test("book, clash, edit and cancel", async ({ page }) => {
   });
   await expect(editedBlock).toBeVisible();
 
-  // Cancel both bookings; the slots free up.
+  // The history names who made each change; then cancel both bookings.
   await editedBlock.click();
+  await expect(dialog).toContainText(`${FIRST_BOOKER} · Booked`);
+  await expect(dialog).toContainText(`${SECOND_BOOKER} · Changed`);
   await cancelOpenBooking(page);
   await expect(editedBlock).toBeHidden();
   await page
@@ -186,8 +186,7 @@ test("book, clash, edit and cancel", async ({ page }) => {
 });
 
 test("a booking that lost a race shows the clash", async ({ page }) => {
-  await page.goto("/");
-  await setBookerName(page, FIRST_BOOKER);
+  await logInAs(page, FIRST_BOOKER);
   await openNextWednesday(page);
   await clickSlot(page, CAMERA_A_ID, 15);
   const dialog = page.getByRole("dialog");
@@ -210,7 +209,7 @@ test("a booking that lost a race shows the clash", async ({ page }) => {
 });
 
 test("an edit that lost a race shows the newer version", async ({ page }) => {
-  await page.goto("/");
+  await logInAs(page, FIRST_BOOKER);
   await openNextWednesday(page);
   await clickSlot(page, CAMERA_A_ID, 17);
   const dialog = page.getByRole("dialog");
@@ -255,7 +254,7 @@ test("an edit that lost a race shows the newer version", async ({ page }) => {
 test("shows the viewer's own time when it differs from the studio's", async ({
   page,
 }, testInfo) => {
-  await page.goto("/");
+  await logInAs(page, FIRST_BOOKER);
   await openNextWednesday(page);
   await clickSlot(page, CAMERA_A_ID, 10);
 

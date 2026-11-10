@@ -1,6 +1,10 @@
 /** UI settings and labels. Studio rules (time zone, step) come from the API. */
 
-export const NAME_STORAGE_KEY = "halftone-booking:booker-name";
+export const SESSION_STORAGE_KEY = "halftone-booking:session";
+// Where the header's free-text name lived before logging in existed.
+export const LEGACY_NAME_STORAGE_KEY = "halftone-booking:booker-name";
+// Matches the API's limit on usernames.
+export const USERNAME_MAX_LENGTH = 80;
 export const THEME_STORAGE_KEY = "halftone-booking:theme";
 export const HOUR_RANGE_STORAGE_KEY = "halftone-booking:schedule-hours";
 

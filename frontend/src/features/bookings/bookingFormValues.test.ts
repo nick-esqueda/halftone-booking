@@ -32,7 +32,7 @@ describe("findFormProblems", () => {
       endTime: "12:00",
     });
     expect(problems).toEqual([
-      "Enter your name.",
+      "Choose who the booking is for.",
       "Pick at least one item.",
       "The end must be after the start.",
     ]);

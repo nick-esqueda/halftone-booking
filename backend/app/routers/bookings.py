@@ -84,9 +84,3 @@ def get_booking_history(
 ) -> list[BookingEventResponse]:
     events = service.list_history(booking_id)
     return [BookingEventResponse.model_validate(event) for event in events]
-
-
-@router.get("/booker-names")
-def list_booker_names(service: BookingServiceDependency) -> list[str]:
-    """Names used on past bookings, for autocomplete."""
-    return service.list_booker_names()

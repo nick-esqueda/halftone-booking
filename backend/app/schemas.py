@@ -29,11 +29,26 @@ class BookingCreateRequest(BookingRequest):
 
 class BookingUpdateRequest(BookingRequest):
     version: int = Field(description="The version you loaded; stale saves are refused.")
+    actor_name: str = Field(
+        default="",
+        description="Who is making the edit, for the history; empty means the booker.",
+    )
 
 
 class BookingCancelRequest(BaseModel):
     actor_name: str
     version: int
+
+
+class LoginRequest(BaseModel):
+    username: str
+
+
+class UserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    username: str
 
 
 class EquipmentResponse(BaseModel):

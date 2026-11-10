@@ -60,7 +60,6 @@ function useRefreshBookingQueries() {
   return () => {
     void queryClient.invalidateQueries({ queryKey: queryKeys.availabilityAll });
     void queryClient.invalidateQueries({ queryKey: queryKeys.bookingsAll });
-    void queryClient.invalidateQueries({ queryKey: queryKeys.bookerNames });
   };
 }
 
