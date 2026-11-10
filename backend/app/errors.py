@@ -59,6 +59,18 @@ class NotFoundError(BookingError):
     code = "not_found"
 
 
+class UserNotFoundError(BookingError):
+    """Nobody has this username, so they can't log in."""
+
+    code = "user_not_found"
+
+
+class UnknownUserError(BookingError):
+    """A booking named someone who isn't a user."""
+
+    code = "unknown_user"
+
+
 class StaleVersionError(BookingError):
     code = "stale_version"
 
@@ -84,6 +96,8 @@ class RateLimitedError(BookingError):
 HTTP_STATUS_BY_ERROR: dict[type[BookingError], int] = {
     InvalidBookingError: 422,
     NotFoundError: 404,
+    UserNotFoundError: 404,
+    UnknownUserError: 422,
     StaleVersionError: 409,
     BookingConflictError: 409,
     AssistantUnavailableError: 503,

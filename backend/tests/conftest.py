@@ -35,7 +35,7 @@ from app.dependencies import (  # noqa: E402
     get_llm_provider,
 )
 from app.main import app  # noqa: E402
-from app.seed import seed_equipment  # noqa: E402
+from app.seed import seed_equipment, seed_users  # noqa: E402
 from tests.scripted_model import ScriptedModel  # noqa: E402
 
 STUDIO_ZONE = ZoneInfo("America/Chicago")
@@ -43,7 +43,10 @@ STUDIO_ZONE = ZoneInfo("America/Chicago")
 # "Now" in every test unless a test moves the clock: Tue Oct 27 2026, 10:30 studio time.
 DEFAULT_NOW = datetime(2026, 10, 27, 10, 30, tzinfo=STUDIO_ZONE)
 
-ALL_TABLES = "booking_events, booking_items, bookings, equipment"
+ALL_TABLES = "booking_events, booking_items, bookings, equipment, users"
+
+# Users the tests book as, on top of the studio's seeded users.
+TEST_USERNAMES = ["Sam K", "Ana", "Jo"]
 
 
 class FixedClock:
@@ -67,11 +70,13 @@ def migrated_database() -> None:
 
 @pytest.fixture(autouse=True)
 def clean_database(migrated_database: None) -> Iterator[None]:
-    """Every test starts with only the seeded equipment."""
+    """Every test starts with only the seeded equipment and users."""
     with get_engine().begin() as connection:
         connection.execute(text(f"TRUNCATE {ALL_TABLES} RESTART IDENTITY CASCADE"))
     with get_session_factory()() as session:
         seed_equipment(session)
+        seed_users(session)
+        seed_users(session, TEST_USERNAMES)
     yield
 
 

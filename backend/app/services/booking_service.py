@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.errors import InvalidBookingError, NotFoundError, StaleVersionError
-from app.models import Booking, BookingEvent, BookingItem
+from app.models import Booking, BookingEvent, BookingItem, User
 from app.repositories.booking_repository import BookingRepository, build_period
 from app.repositories.equipment_repository import EquipmentRepository
 from app.schemas import BookingCancelRequest, BookingRequest, BookingUpdateRequest
@@ -25,6 +25,7 @@ from app.services.booking_rules import (
 )
 from app.services.booking_times import TimeSpan, describe_span, get_booking_span
 from app.services.conflicts import ConflictChecker, is_overlap_violation
+from app.services.user_service import UserService
 from app.studio_time import Clock, convert_to_studio_time, convert_to_utc
 
 logger = logging.getLogger(__name__)
@@ -51,6 +52,7 @@ class BookingService:
         self.studio_zone = ZoneInfo(settings.studio_timezone)
         self.bookings = BookingRepository(session)
         self.equipment = EquipmentRepository(session)
+        self.users = UserService(session, settings, clock)
         self.conflict_checker = ConflictChecker(self.bookings, self.studio_zone)
 
     def get_booking(self, booking_id: int) -> Booking:
@@ -61,14 +63,15 @@ class BookingService:
 
     def create_booking(self, request: BookingRequest) -> Booking:
         draft = self._check_new_booking(request)
+        booker = self.users.resolve(draft.booker_name)
 
         # Describe before adding rows: the equipment lookup would otherwise
         # flush them early, outside the conflict handling in `_commit`.
         summary = self._describe(draft)
-        booking = Booking(booker_name=draft.booker_name, purpose=draft.purpose)
+        booking = Booking(user=booker, purpose=draft.purpose)
         self.bookings.add(booking)
         self._add_items(booking, draft.equipment_ids, draft)
-        self._record_event(booking, "created", draft.booker_name, summary)
+        self._record_event(booking, "created", booker, summary)
 
         self._commit(draft, excluded_booking_id=None)
         self._log_saved("Booking created", booking, draft)
@@ -85,13 +88,15 @@ class BookingService:
     def update_booking(self, booking_id: int, request: BookingUpdateRequest) -> Booking:
         booking = self._load_editable_booking(booking_id, request.version)
         draft = self._check_update(booking, request)
+        booker = self.users.resolve(draft.booker_name)
+        editor = self._resolve_actor(request.actor_name, fallback=booker)
 
         summary = self._describe(draft)
-        booking.booker_name = draft.booker_name
+        booking.user = booker
         booking.purpose = draft.purpose
         self._replace_items(booking, draft)
         booking.version += 1
-        self._record_event(booking, "updated", draft.booker_name, summary)
+        self._record_event(booking, "updated", editor, summary)
 
         self._commit(draft, excluded_booking_id=booking.id)
         self._log_saved("Booking updated", booking, draft)
@@ -107,9 +112,9 @@ class BookingService:
             item.cancelled_at = now
         booking.version += 1
 
-        actor_name = normalize_name(request.actor_name) or booking.booker_name
+        actor = self._resolve_actor(request.actor_name, fallback=booking.user)
         summary = f"Cancelled {describe_span(span, self.studio_zone)}"
-        self._record_event(booking, "cancelled", actor_name, summary)
+        self._record_event(booking, "cancelled", actor, summary)
         self.session.commit()
 
         fields = {"booking_id": booking.id, "version": booking.version}
@@ -137,9 +142,6 @@ class BookingService:
         logger.debug("Listed bookings for a booker", extra={"count": len(bookings)})
         return bookings
 
-    def list_booker_names(self) -> list[str]:
-        return self.bookings.list_booker_names()
-
     def list_history(self, booking_id: int) -> list[BookingEvent]:
         self.get_booking(booking_id)
         return self.bookings.list_events(booking_id)
@@ -161,6 +163,12 @@ class BookingService:
             draft.equipment_ids, draft.starts_at, draft.ends_at, booking.id
         )
         return draft
+
+    def _resolve_actor(self, actor_name: str, fallback: User) -> User:
+        """Who made a change: the named user, or `fallback` when no name is given."""
+        if not normalize_name(actor_name):
+            return fallback
+        return self.users.resolve(actor_name)
 
     def _raise_if_finished(self, booking: Booking) -> None:
         if get_booking_span(booking).ends_at <= self.clock.now():
@@ -254,10 +262,10 @@ class BookingService:
         logger.info(message, extra={**ids, **fields})
 
     def _record_event(
-        self, booking: Booking, action: str, actor_name: str, summary: str
+        self, booking: Booking, action: str, actor: User, summary: str
     ) -> None:
         event = BookingEvent(
-            booking=booking, action=action, actor_name=actor_name, summary=summary
+            booking=booking, action=action, actor=actor, summary=summary
         )
         self.bookings.add(event)
 

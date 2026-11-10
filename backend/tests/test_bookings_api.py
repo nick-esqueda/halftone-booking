@@ -52,12 +52,6 @@ def test_list_by_name_ignores_case(client: TestClient) -> None:
     assert names == ["Sam K"]
 
 
-def test_booker_names_for_autocomplete(client: TestClient) -> None:
-    create_booking_ok(client, booker_name="Sam K")
-    create_booking_ok(client, booker_name="Ana", equipment_ids=[CAMERA_B])
-    assert client.get("/api/booker-names").json() == ["Ana", "Sam K"]
-
-
 def test_update_changes_time_items_and_version(client: TestClient) -> None:
     booking = create_booking_ok(client)
 
@@ -161,3 +155,68 @@ def test_studio_config(client: TestClient) -> None:
         "time_step_minutes": 15,
         "assistant_enabled": False,
     }
+
+
+def test_booking_shows_the_users_spelling(client: TestClient) -> None:
+    booking = create_booking_ok(client, booker_name="susie")
+    assert booking["booker_name"] == "Susie"
+
+
+def test_booking_for_someone_who_is_not_a_user_is_refused(
+    client: TestClient,
+) -> None:
+    response = create_booking(client, booker_name="Nobody Here")
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "unknown_user"
+    assert (
+        client.get("/api/bookings", params={"booker_name": "Nobody Here"}).json() == []
+    )
+
+
+def test_anyone_can_edit_someone_elses_booking(client: TestClient) -> None:
+    booking = create_booking_ok(client, booker_name="Susie")
+
+    response = update_booking(client, booking, purpose="Reshoot", actor_name="Eric")
+
+    assert response.status_code == 200
+    assert response.json()["booker_name"] == "Susie"
+    history = client.get(f"/api/bookings/{booking['id']}/history").json()
+    assert [event["actor_name"] for event in history] == ["Susie", "Eric"]
+
+
+def test_anyone_can_cancel_someone_elses_booking(client: TestClient) -> None:
+    booking = create_booking_ok(client, booker_name="Susie")
+    payload = {"actor_name": "Eric", "version": booking["version"]}
+
+    response = client.post(f"/api/bookings/{booking['id']}/cancel", json=payload)
+
+    assert response.status_code == 200
+    history = client.get(f"/api/bookings/{booking['id']}/history").json()
+    assert history[-1]["action"] == "cancelled"
+    assert history[-1]["actor_name"] == "Eric"
+
+
+def test_changes_by_someone_who_is_not_a_user_are_refused(
+    client: TestClient,
+) -> None:
+    booking = create_booking_ok(client, booker_name="Susie")
+    cancel_payload = {"actor_name": "Nobody Here", "version": booking["version"]}
+
+    edit = update_booking(client, booking, actor_name="Nobody Here")
+    cancel = client.post(f"/api/bookings/{booking['id']}/cancel", json=cancel_payload)
+
+    assert edit.status_code == 422
+    assert cancel.status_code == 422
+    assert client.get(f"/api/bookings/{booking['id']}").json()["version"] == 1
+
+
+def test_changing_booked_by_moves_the_booking(client: TestClient) -> None:
+    booking = create_booking_ok(client, booker_name="Susie")
+
+    update_booking(client, booking, booker_name="Eric")
+
+    susies = client.get("/api/bookings", params={"booker_name": "Susie"}).json()
+    erics = client.get("/api/bookings", params={"booker_name": "eric"}).json()
+    assert susies == []
+    assert [found["id"] for found in erics] == [booking["id"]]

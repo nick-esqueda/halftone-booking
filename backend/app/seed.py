@@ -1,7 +1,8 @@
-"""Adds the studio's equipment to an empty database.
+"""Adds the studio's equipment and users to the database.
 
 Run with `uv run python -m app.seed`. Running it again adds only what's
-missing, so it is safe to repeat. With `BOOKING_SEED_DEMO_BOOKINGS=true` it
+missing, so it is safe to repeat. Users are always seeded: they are the only
+people who can log in (see app/studio_users.py). With `BOOKING_SEED_DEMO_BOOKINGS=true` it
 also fills a database that has no bookings with random demo bookings (see
 app/demo_bookings.py).
 """
@@ -14,11 +15,13 @@ from sqlalchemy.orm import Session
 from app.config import Settings, get_settings
 from app.db import get_session_factory
 from app.demo_bookings import seed_demo_bookings
-from app.models import Equipment
+from app.models import Equipment, User
 from app.observability.request_context import bind_request_id
 from app.observability.setup import configure_logging
 from app.repositories.equipment_repository import EquipmentRepository
+from app.repositories.user_repository import UserRepository
 from app.studio_time import SystemClock
+from app.studio_users import STUDIO_USERNAMES
 
 # The request ID on every line the seed script logs.
 SEED_REQUEST_ID = "seed"
@@ -70,12 +73,28 @@ def seed_equipment(session: Session) -> int:
     return len(missing)
 
 
+def seed_users(session: Session, usernames: list[str] = STUDIO_USERNAMES) -> int:
+    """Insert any of `usernames` not already present; return how many were added.
+
+    Matching ignores case, so a user who exists as "susie" isn't added again.
+    Users added some other way are left alone.
+    """
+    users = UserRepository(session)
+    missing = [name for name in usernames if users.find_by_username(name) is None]
+    for name in missing:
+        users.add(User(username=name))
+    session.commit()
+    return len(missing)
+
+
 def run_seed() -> None:
     settings = get_settings()
     configure_logging(settings)
     with bind_request_id(SEED_REQUEST_ID), get_session_factory()() as session:
         added_count = seed_equipment(session)
         logger.info("Seeded equipment", extra={"added_count": added_count})
+        added_user_count = seed_users(session)
+        logger.info("Seeded users", extra={"added_count": added_user_count})
 
         if settings.seed_demo_bookings:
             run_demo_booking_seed(session, settings)

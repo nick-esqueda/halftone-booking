@@ -21,6 +21,7 @@ from app.db import get_session
 from app.errors import AssistantUnavailableError
 from app.services.availability_service import AvailabilityService
 from app.services.booking_service import BookingService
+from app.services.user_service import UserService
 from app.studio_time import Clock, SystemClock
 
 SessionDependency = Annotated[Session, Depends(get_session)]
@@ -46,7 +47,14 @@ def get_availability_service(
     return AvailabilityService(session, settings)
 
 
+def get_user_service(
+    session: SessionDependency, settings: SettingsDependency, clock: ClockDependency
+) -> UserService:
+    return UserService(session, settings, clock)
+
+
 BookingServiceDependency = Annotated[BookingService, Depends(get_booking_service)]
+UserServiceDependency = Annotated[UserService, Depends(get_user_service)]
 AvailabilityServiceDependency = Annotated[
     AvailabilityService, Depends(get_availability_service)
 ]
