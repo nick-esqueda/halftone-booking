@@ -67,11 +67,20 @@ export class LocalSessionStore implements SessionStore {
   }
 
   save(user: SessionUser): void {
-    this.memoryUser = user;
+    // Keep a memory copy only when storage can't hold the session, so a
+    // Log out in another tab (which removes the stored copy) also logs out here.
+    this.memoryUser = this.writeToStorage(user) ? null : user;
+  }
+
+  private writeToStorage(user: SessionUser): boolean {
+    if (this.storage === null) {
+      return false;
+    }
     try {
-      this.storage?.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+      this.storage.setItem(SESSION_STORAGE_KEY, JSON.stringify(user));
+      return true;
     } catch {
-      // The in-memory copy keeps this tab logged in.
+      return false;
     }
   }
 

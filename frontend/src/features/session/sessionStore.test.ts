@@ -40,6 +40,15 @@ describe("LocalSessionStore", () => {
     expect(new LocalSessionStore().read()).toBeNull();
   });
 
+  it("logs out when another tab removes the stored session", () => {
+    const store = new LocalSessionStore();
+    store.save(SUSIE);
+
+    window.localStorage.removeItem(SESSION_STORAGE_KEY);
+
+    expect(store.read()).toBeNull();
+  });
+
   it("keeps the session in memory when storage is blocked", () => {
     const store = new LocalSessionStore(BLOCKED_STORAGE);
 

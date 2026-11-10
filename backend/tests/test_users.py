@@ -51,3 +51,11 @@ def test_seeding_twice_adds_nothing_and_keeps_other_users(
 
     assert added_again == 0
     assert count_users(empty_users_table) == STUDIO_USER_COUNT + 1
+
+
+def test_seed_adds_a_name_listed_twice_once(empty_users_table: Session) -> None:
+    added_count = seed_users(empty_users_table, ["Sam K", "sam k", "Ana"])
+
+    usernames = empty_users_table.scalars(select(User.username).order_by(User.id))
+    assert added_count == 2
+    assert list(usernames) == ["Sam K", "Ana"]

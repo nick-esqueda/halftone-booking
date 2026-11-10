@@ -80,7 +80,13 @@ def seed_users(session: Session, usernames: list[str] = STUDIO_USERNAMES) -> int
     Users added some other way are left alone.
     """
     users = UserRepository(session)
-    missing = [name for name in usernames if users.find_by_username(name) is None]
+    # Keyed by lower case so a name listed twice is added once, first spelling wins.
+    unique_names: dict[str, str] = {}
+    for name in usernames:
+        unique_names.setdefault(name.lower(), name)
+    missing = [
+        name for name in unique_names.values() if users.find_by_username(name) is None
+    ]
     for name in missing:
         users.add(User(username=name))
     session.commit()
