@@ -10,7 +10,7 @@ import {
   TEXT_INPUT_CLASS_NAME,
 } from "../../components/ui/styles";
 import { useAvailability } from "../availability/useAvailability";
-import { NameInput } from "../identity/NameInput";
+import { UserSelect } from "../users/UserSelect";
 import { describeInViewerTime, getViewerTimezone } from "../studio/viewerTime";
 import {
   findFormProblems,
@@ -68,7 +68,7 @@ export function BookingForm(props: BookingFormProps) {
   return (
     <form onSubmit={handleSubmit} className="space-y-5 px-6 py-5">
       <Field label="Booked by">
-        <NameInput
+        <UserSelect
           label="Booked by"
           value={values.bookerName}
           onChange={(bookerName) => updateValues({ bookerName })}

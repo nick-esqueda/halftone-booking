@@ -81,7 +81,7 @@ interface FormCheck {
 const FORM_CHECKS: FormCheck[] = [
   {
     isFailing: (values) => values.bookerName.trim() === "",
-    message: "Enter your name.",
+    message: "Choose who the booking is for.",
   },
   {
     isFailing: (values) => values.equipmentIds.length === 0,

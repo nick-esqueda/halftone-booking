@@ -3,7 +3,6 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import type { Booking } from "../api/types";
-import { NAME_STORAGE_KEY } from "../config/constants";
 import { installFakeApi, respond } from "../test/fakeApi";
 import { renderWithProviders } from "../test/renderWithProviders";
 import { MyBookingsPage } from "./MyBookingsPage";
@@ -27,7 +26,6 @@ const UPCOMING_BOOKING = {
 
 describe("MyBookingsPage", () => {
   it("names each column of the bookings table", async () => {
-    window.localStorage.setItem(NAME_STORAGE_KEY, "Sam K");
     installFakeApi({
       "GET /api/config": () => respond(200, CONFIG),
       "GET /api/bookings": () => respond(200, [UPCOMING_BOOKING]),
@@ -49,9 +47,27 @@ describe("MyBookingsPage", () => {
   });
 });
 
+describe("whose bookings are shown", () => {
+  it("lists the logged-in user's bookings", async () => {
+    const askedNames: (string | null)[] = [];
+    installFakeApi({
+      "GET /api/config": () => respond(200, CONFIG),
+      "GET /api/bookings": (_body, url) => {
+        askedNames.push(url.searchParams.get("booker_name"));
+        return respond(200, [{ ...UPCOMING_BOOKING, booker_name: "Ana" }]);
+      },
+    });
+    renderWithProviders(<MyBookingsPage />, {
+      user: { userId: 2, username: "Ana" },
+    });
+
+    expect(await screen.findByText("Interview")).toBeInTheDocument();
+    expect(askedNames).toEqual(["Ana"]);
+  });
+});
+
 describe("cancelling from My bookings", () => {
   it("asks in a dialog that names the booking, then cancels it", async () => {
-    window.localStorage.setItem(NAME_STORAGE_KEY, "Sam K");
     const api = installFakeApi({
       "GET /api/config": () => respond(200, CONFIG),
       "GET /api/bookings": () => respond(200, [UPCOMING_BOOKING]),
@@ -82,7 +98,6 @@ describe("cancelling from My bookings", () => {
   });
 
   it("keeps the booking when the person changes their mind", async () => {
-    window.localStorage.setItem(NAME_STORAGE_KEY, "Sam K");
     const api = installFakeApi({
       "GET /api/config": () => respond(200, CONFIG),
       "GET /api/bookings": () => respond(200, [UPCOMING_BOOKING]),
@@ -101,7 +116,6 @@ describe("cancelling from My bookings", () => {
 
 describe("MyBookingsPage when the API is failing", () => {
   it("shows an error with a way to try again", async () => {
-    window.localStorage.setItem(NAME_STORAGE_KEY, "Sam K");
     installFakeApi({
       "GET /api/config": () => respond(200, CONFIG),
       "GET /api/bookings": () =>

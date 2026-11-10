@@ -12,8 +12,11 @@ import {
 } from "@playwright/test";
 import { addDays, format } from "date-fns";
 
+import { logInAs } from "./session";
+
 const STUDIO_TIMEZONE = "America/Chicago";
-const BOOKER = "E2E Assistant";
+// A seeded user that only this spec books as.
+const BOOKER = "Danny";
 const CAMERA_C_ID = 3;
 // Far enough ahead that the time is never in the past or on a busy day.
 const DAYS_AHEAD = 9;
@@ -84,8 +87,7 @@ test("a draft from the assistant is reviewed, then booked", async ({
     options: [],
   };
   await page.route(ASSISTANT_URL, (route) => route.fulfill({ json: reply }));
-  await page.goto("/");
-  await page.getByLabel("Your name").fill(BOOKER);
+  await logInAs(page, BOOKER);
 
   await page
     .getByLabel("Ask the booking assistant")
@@ -127,8 +129,7 @@ test("a suggested change and cancellation are confirmed, then saved", async ({
     },
   });
   const booking = await created.json();
-  await page.goto("/");
-  await page.getByLabel("Your name").fill(BOOKER);
+  await logInAs(page, BOOKER);
 
   await askAssistant(page, "Make my Camera C booking end at 7", {
     kind: "change",
@@ -183,7 +184,7 @@ test("a long conversation scrolls, keeping the newest line in view", async ({
     draft: null,
     options: [],
   };
-  await page.goto("/");
+  await logInAs(page, BOOKER);
   for (let round = 1; round <= 8; round += 1) {
     await askAssistant(page, `Question ${round}`, reply);
     await expect(page.getByText(`Question ${round}`)).toBeVisible();

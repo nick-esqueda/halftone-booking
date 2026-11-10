@@ -7,8 +7,11 @@ import { TZDate } from "@date-fns/tz";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { addDays, format, startOfWeek } from "date-fns";
 
+import { logInAs } from "./session";
+
 const STUDIO_TIMEZONE = "America/Chicago";
-const BOOKER = "E2E Early Bird";
+// A seeded user that only this spec books as.
+const BOOKER = "Jordan";
 const CAMERA_C_ID = 3;
 const MONDAY = 1;
 const THURSDAY_OFFSET_DAYS = 3;
@@ -61,7 +64,7 @@ test("an early booking is hinted at, then shown with all hours", async ({
     },
   });
   expect(created.ok()).toBe(true);
-  await page.goto("/");
+  await logInAs(page, BOOKER);
   await page.getByRole("button", { name: "Next week" }).click();
   await page.getByRole("tab", { name: /Thu/ }).click();
 

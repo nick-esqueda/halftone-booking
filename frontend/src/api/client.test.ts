@@ -51,6 +51,19 @@ describe("unwrapResponse", () => {
     expect(isTemporaryError(error)).toBe(false);
   });
 
+  it.each(["user_not_found", "unknown_user"])(
+    "passes the %s code on to callers as it is",
+    async (code) => {
+      const body = { code, message: "No such user.", conflicts: [] };
+      installFakeApi({ [CONFIG_ROUTE]: () => respond(404, body) });
+
+      const error = await loadConfigExpectingError();
+
+      expect(error.code).toBe(code);
+      expect(isTemporaryError(error)).toBe(false);
+    },
+  );
+
   it("reports the network failing as a connection problem", async () => {
     installFakeApi({ [CONFIG_ROUTE]: failNetwork });
 

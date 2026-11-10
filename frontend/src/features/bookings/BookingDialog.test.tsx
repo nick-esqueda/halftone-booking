@@ -1,10 +1,13 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Booking, EquipmentAvailability } from "../../api/types";
 import { failNetwork, installFakeApi, respond } from "../../test/fakeApi";
-import { renderWithProviders } from "../../test/renderWithProviders";
+import {
+  TEST_USERS,
+  renderWithProviders,
+} from "../../test/renderWithProviders";
 import { pickTime, readTime } from "../../test/timePicker";
 import { BookingDialog, type BookingDialogRequest } from "./BookingDialog";
 
@@ -29,16 +32,18 @@ const AVAILABILITY: { equipment: EquipmentAvailability[] } = {
   ],
 };
 
+const NEW_BOOKING_DEFAULTS = {
+  bookerName: "Sam K",
+  startDate: "2026-10-29",
+  startTime: "10:00",
+  endDate: "2026-10-29",
+  endTime: "12:00",
+  equipmentIds: [CAMERA_A.id],
+};
+
 const NEW_BOOKING_REQUEST: BookingDialogRequest = {
   kind: "create",
-  defaults: {
-    bookerName: "Sam K",
-    startDate: "2026-10-29",
-    startTime: "10:00",
-    endDate: "2026-10-29",
-    endTime: "12:00",
-    equipmentIds: [CAMERA_A.id],
-  },
+  defaults: NEW_BOOKING_DEFAULTS,
 };
 
 const EXISTING_BOOKING: Booking = {
@@ -55,7 +60,7 @@ const EXISTING_BOOKING: Booking = {
 const BASE_ROUTES = {
   "GET /api/config": () => respond(200, CONFIG),
   "GET /api/availability": () => respond(200, AVAILABILITY),
-  "GET /api/booker-names": () => respond(200, []),
+  "GET /api/users": () => respond(200, TEST_USERS),
   "GET /api/bookings/7": () => respond(200, EXISTING_BOOKING),
   "GET /api/bookings/7/history": () => respond(200, []),
 };
@@ -181,12 +186,15 @@ describe("new booking", () => {
 
   it("checks the form before asking the server", async () => {
     const api = installFakeApi({ ...BASE_ROUTES });
-    renderDialog(NEW_BOOKING_REQUEST);
+    const defaults = { ...NEW_BOOKING_DEFAULTS, bookerName: "" };
+    renderDialog({ kind: "create", defaults });
 
-    await userEvent.clear(await screen.findByLabelText("Booked by"));
+    expect(await screen.findByLabelText("Booked by")).toHaveValue("");
     await userEvent.click(screen.getByRole("button", { name: "Book 1 item" }));
 
-    expect(screen.getByRole("alert")).toHaveTextContent("Enter your name.");
+    expect(screen.getByRole("alert")).toHaveTextContent(
+      "Choose who the booking is for.",
+    );
     expect(api.requests("POST /api/bookings")).toEqual([]);
   });
 
@@ -292,5 +300,68 @@ describe("editing a booking", () => {
     expect(api.requests("POST /api/bookings/7/cancel")).toEqual([
       { actor_name: "Sam K", version: 3 },
     ]);
+  });
+});
+
+describe("other people's bookings", () => {
+  const ANAS_BOOKING = { ...EXISTING_BOOKING, booker_name: "Ana" };
+
+  it("can be edited; the booker stays and the editor is recorded", async () => {
+    const api = installFakeApi({
+      ...BASE_ROUTES,
+      "GET /api/bookings/7": () => respond(200, ANAS_BOOKING),
+      "PUT /api/bookings/7": () =>
+        respond(200, { ...ANAS_BOOKING, version: 4 }),
+    });
+    renderDialog({ kind: "edit", bookingId: 7 });
+
+    const saveButton = await screen.findByRole("button", {
+      name: "Save changes",
+    });
+    expect(saveButton).toBeEnabled();
+    await userEvent.click(saveButton);
+
+    await waitFor(() =>
+      expect(api.requests("PUT /api/bookings/7")).toEqual([
+        expect.objectContaining({ booker_name: "Ana", actor_name: "Sam K" }),
+      ]),
+    );
+  });
+
+  it("can be cancelled in the logged-in user's name", async () => {
+    const api = installFakeApi({
+      ...BASE_ROUTES,
+      "GET /api/bookings/7": () => respond(200, ANAS_BOOKING),
+      "POST /api/bookings/7/cancel": () =>
+        respond(200, { ...ANAS_BOOKING, is_cancelled: true, version: 4 }),
+    });
+    renderDialog({ kind: "edit", bookingId: 7 });
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: /^Cancel$/ }),
+    );
+    await userEvent.click(
+      screen.getByRole("button", { name: "Cancel booking" }),
+    );
+
+    await waitFor(() =>
+      expect(api.requests("POST /api/bookings/7/cancel")).toEqual([
+        { actor_name: "Sam K", version: 3 },
+      ]),
+    );
+  });
+});
+
+describe("Booked by", () => {
+  it("lists the users and starts with the logged-in user", async () => {
+    renderDialog(NEW_BOOKING_REQUEST);
+
+    const bookedBy = await screen.findByLabelText("Booked by");
+    expect(bookedBy).toHaveValue("Sam K");
+    const usernames = TEST_USERS.map((user) => user.username);
+    await waitFor(() => {
+      const options = within(bookedBy).getAllByRole("option");
+      expect(options.map((option) => option.textContent)).toEqual(usernames);
+    });
   });
 });

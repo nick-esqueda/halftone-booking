@@ -4,7 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import type { AssistantReply, Booking } from "../../api/types";
 import { installFakeApi, respond } from "../../test/fakeApi";
-import { renderWithProviders } from "../../test/renderWithProviders";
+import {
+  TEST_USERS,
+  renderWithProviders,
+} from "../../test/renderWithProviders";
 import { readTime } from "../../test/timePicker";
 import { SchedulePage } from "../../pages/SchedulePage";
 
@@ -83,7 +86,7 @@ function installApi(assistantReply: AssistantReply) {
   return installFakeApi({
     "GET /api/config": () => respond(200, CONFIG),
     "GET /api/availability": () => respond(200, AVAILABILITY),
-    "GET /api/booker-names": () => respond(200, []),
+    "GET /api/users": () => respond(200, TEST_USERS),
     "GET /api/equipment": () => respond(200, [CAMERA_A, LIGHT_1]),
     "GET /api/bookings/7": () => respond(200, BOOKING),
     "GET /api/bookings/7/history": () => respond(200, []),
@@ -154,6 +157,7 @@ describe("assistant suggestions for existing bookings", () => {
           starts_at: "2026-10-29T13:00",
           ends_at: "2026-10-29T18:00",
           version: 3,
+          actor_name: "Sam K",
         },
       ]),
     );

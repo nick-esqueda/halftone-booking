@@ -4,7 +4,7 @@ import type { AssistantReply, Booking } from "../../api/types";
 import { Button } from "../../components/ui/Button";
 import { ErrorBanner } from "../../components/ui/ErrorBanner";
 import { TEXT_INPUT_CLASS_NAME } from "../../components/ui/styles";
-import { useBookerNameContext } from "../identity/bookerNameStore";
+import { useCurrentUser } from "../session/sessionContext";
 import {
   addExchange,
   describeConfirmed,
@@ -38,7 +38,7 @@ interface AssistantPanelProps {
  * until the person confirms in the booking form.
  */
 export function AssistantPanel({ timezone, onOpen }: AssistantPanelProps) {
-  const { bookerName } = useBookerNameContext();
+  const { username: bookerName } = useCurrentUser();
   const askAssistant = useAskAssistant();
   const [message, setMessage] = useState("");
   const [conversation, setConversation] = useState<ConversationEntry[]>([]);

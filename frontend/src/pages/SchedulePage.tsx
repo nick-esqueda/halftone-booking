@@ -35,7 +35,7 @@ import {
   type BookingDialogRequest,
 } from "../features/bookings/BookingDialog";
 import type { NewBookingDefaults } from "../features/bookings/bookingFormValues";
-import { useBookerNameContext } from "../features/identity/bookerNameStore";
+import { useCurrentUser } from "../features/session/sessionContext";
 import { Button } from "../components/ui/Button";
 import { LoadError } from "../components/ui/LoadError";
 import {
@@ -98,7 +98,7 @@ function Schedule({
   const [hourRangeName, setHourRangeName] = useHourRange();
   const [dialogRequest, setDialogRequest] =
     useState<BookingDialogRequest | null>(null);
-  const { bookerName } = useBookerNameContext();
+  const { username: bookerName } = useCurrentUser();
   const availability = useAvailability(buildDayRange(selectedDay));
 
   const weekDays = buildWeekDays(

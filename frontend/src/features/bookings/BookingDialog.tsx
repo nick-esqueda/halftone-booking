@@ -6,6 +6,7 @@ import {
   type AssistantSuggestion,
 } from "../assistant/assistantConversation";
 import { CancelSummary, ChangeSummary } from "../assistant/SuggestionSummary";
+import { useCurrentUser } from "../session/sessionContext";
 import { useStudioConfig } from "../studio/useStudioConfig";
 import { BookingForm } from "./BookingForm";
 import {
@@ -115,6 +116,7 @@ function EditBookingDialog({
   const bookingQuery = useBooking(bookingId);
   const booking = bookingQuery.data;
   const updateBooking = useUpdateBooking(bookingId);
+  const { username: editorName } = useCurrentUser();
   if (bookingQuery.error) {
     return (
       <Dialog isOpen title="Booking" onClose={onClose}>
@@ -137,6 +139,7 @@ function EditBookingDialog({
     const request = {
       ...buildBookingRequest(values),
       version: booking.version,
+      actor_name: editorName,
     };
     updateBooking.mutate(request, { onSuccess: onDone });
   };

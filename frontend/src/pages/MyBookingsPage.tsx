@@ -8,7 +8,7 @@ import {
 } from "../features/bookings/BookingDialog";
 import { MyBookingsList } from "../features/bookings/MyBookingsList";
 import { useBookingsFor } from "../features/bookings/useBookings";
-import { useBookerNameContext } from "../features/identity/bookerNameStore";
+import { useCurrentUser } from "../features/session/sessionContext";
 import { useStudioConfig } from "../features/studio/useStudioConfig";
 
 function isUpcoming(booking: Booking, now: Date): boolean {
@@ -22,7 +22,7 @@ function sortByStart(bookings: Booking[]): Booking[] {
 }
 
 export function MyBookingsPage() {
-  const { bookerName } = useBookerNameContext();
+  const { username: bookerName } = useCurrentUser();
   const configQuery = useStudioConfig();
   const bookingsQuery = useBookingsFor(bookerName);
   const config = configQuery.data;
@@ -31,13 +31,6 @@ export function MyBookingsPage() {
   const [dialogRequest, setDialogRequest] =
     useState<BookingDialogRequest | null>(null);
 
-  if (bookerName.trim() === "") {
-    return (
-      <p className="text-sm text-ink-muted">
-        Enter your name in the top right to see your bookings.
-      </p>
-    );
-  }
   if (loadError) {
     const retryLoading = () => {
       void configQuery.refetch();

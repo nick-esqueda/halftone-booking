@@ -70,6 +70,8 @@ export function installFakeApi(routes: Routes) {
       recordedRequests
         .filter((request) => request.route === route)
         .map((request) => request.body),
+    /** Every route requested, in order, e.g. to check a page sent nothing. */
+    allRoutes: () => recordedRequests.map((request) => request.route),
     /** Swap one route's handler, e.g. to return newer data on refetch. */
     setRoute: (route: string, handler: RouteHandler) => {
       currentRoutes[route] = handler;
